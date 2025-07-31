@@ -1,13 +1,16 @@
 {
-  "name": "vite-react-typescript-starter",
+ "name": "vite-react-typescript-starter",
   "private": true,
   "version": "0.0.0",
   "type": "module",
+  "homepage": "https://yugalbansal.github.io/zappy",  // 👈 Add this line
   "scripts": {
     "dev": "vite",
     "build": "vite build",
     "lint": "eslint .",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "predeploy": "npm run build",       // 👈 Add this line
+    "deploy": "gh-pages -d dist"        // 👈 Add this line
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.53.0",
