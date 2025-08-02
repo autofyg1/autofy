@@ -19,7 +19,7 @@ export interface OAuthTokens {
 export const oauthConfigs: Record<string, OAuthConfig> = {
   gmail: {
     clientId: import.meta.env.VITE_GOOGLE_CLIENT_ID || '',
-    redirectUri: `${window.location.origin}/oauth/callback/gmail`,
+    redirectUri: `https://cheery-nasturtium-54af2b.netlify.app/oauth/callback/gmail`,
     scopes: [
       'https://www.googleapis.com/auth/gmail.readonly',
       'https://www.googleapis.com/auth/userinfo.email',
@@ -30,8 +30,8 @@ export const oauthConfigs: Record<string, OAuthConfig> = {
   },
   notion: {
     clientId: import.meta.env.VITE_NOTION_CLIENT_ID || '',
-    redirectUri: `${window.location.origin}/oauth/callback/notion`,
-    scopes: ['read:database', 'read:page', 'create:page', 'update:page'],
+    redirectUri: `https://cheery-nasturtium-54af2b.netlify.app/oauth/callback/notion`,
+    scopes: [],
     authUrl: 'https://api.notion.com/v1/oauth/authorize',
     tokenUrl: 'https://api.notion.com/v1/oauth/token'
   }
@@ -48,11 +48,18 @@ export const generateAuthUrl = (service: string): string => {
     client_id: config.clientId,
     redirect_uri: config.redirectUri,
     response_type: 'code',
-    scope: config.scopes.join(' '),
-    state: generateState(service),
-    access_type: 'offline', // For Google to get refresh token
-    prompt: 'consent' // Force consent screen to get refresh token
+    state: generateState(service)
   });
+
+  // Add service-specific parameters
+  if (service === 'gmail') {
+    params.set('scope', config.scopes.join(' '));
+    params.set('access_type', 'offline');
+    params.set('prompt', 'consent');
+  } else if (service === 'notion') {
+    // Notion doesn't use scopes in the authorization URL
+    params.set('owner', 'user');
+  }
 
   return `${config.authUrl}?${params.toString()}`;
 };

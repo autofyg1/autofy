@@ -80,7 +80,7 @@ const OAuthCallback: React.FC = () => {
           body: JSON.stringify({
             service,
             code,
-            state: state || 'test-state', // Provide fallback for testing
+            state,
             debug: true // Add debug flag
           })
         });
@@ -90,6 +90,12 @@ const OAuthCallback: React.FC = () => {
         if (!response.ok) {
           const errorData = await response.json();
           console.error('Edge function error:', errorData);
+          
+          // Handle specific OAuth errors
+          if (errorData.error && errorData.error.includes('invalid_grant')) {
+            throw new Error('Authorization code has expired or been used. Please try connecting again.');
+          }
+          
           throw new Error(errorData.error || 'Failed to exchange tokens');
         }
 

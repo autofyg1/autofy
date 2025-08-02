@@ -47,12 +47,12 @@ serve(async (req) => {
       gmail: {
         tokenUrl: 'https://oauth2.googleapis.com/token',
         clientId: Deno.env.get('GOOGLE_CLIENT_ID'),
-        redirectUri: `${req.headers.get('origin') || 'https://cheery-nasturtium-54af2b.netlify.app'}/oauth/callback/gmail`
+        redirectUri: 'https://cheery-nasturtium-54af2b.netlify.app/oauth/callback/gmail'
       },
       notion: {
         tokenUrl: 'https://api.notion.com/v1/oauth/token',
         clientId: Deno.env.get('NOTION_CLIENT_ID'),
-        redirectUri: `${req.headers.get('origin') || 'https://cheery-nasturtium-54af2b.netlify.app'}/oauth/callback/notion`
+        redirectUri: 'https://cheery-nasturtium-54af2b.netlify.app/oauth/callback/notion'
       }
     }
 
@@ -101,33 +101,31 @@ serve(async (req) => {
     let tokenResponse;
     
     if (service === 'notion') {
-      // Notion uses JSON body instead of form data
-      const tokenBody = {
+      // Notion uses form data with Basic Auth
+      const tokenBody = new URLSearchParams({
         grant_type: 'authorization_code',
         code,
-        redirect_uri: config.redirectUri
-      }
-      
-      // Notion uses Basic Auth with base64 encoded client_id:client_secret
-      const credentials = btoa(`${config.clientId}:${clientSecret}`)
+        redirect_uri: config.redirectUri,
+        client_id: config.clientId!,
+        client_secret: clientSecret
+      });
       
       if (debug) {
         console.log('Notion token request:', {
           url: config.tokenUrl,
-          body: tokenBody,
-          hasCredentials: !!credentials
+          body: 'form data with credentials',
+          redirectUri: config.redirectUri
         })
       }
       
       tokenResponse = await fetch(config.tokenUrl, {
         method: 'POST',
         headers: {
-          'Authorization': `Basic ${credentials}`,
-          'Content-Type': 'application/json',
+          'Content-Type': 'application/x-www-form-urlencoded',
           'Accept': 'application/json',
           'Notion-Version': '2022-06-28'
         },
-        body: JSON.stringify(tokenBody)
+        body: tokenBody.toString()
       })
     } else {
       // Google and other services use form data
