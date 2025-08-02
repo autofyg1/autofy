@@ -95,10 +95,25 @@ export const useIntegrations = () => {
 
   const initiateOAuth = (serviceName: string) => {
     try {
+      console.log('=== INITIATING OAUTH ===');
+      console.log('Service:', serviceName);
+      console.log('Current URL:', window.location.href);
+      console.log('SessionStorage before OAuth:', JSON.stringify(sessionStorage));
+      
       const authUrl = generateAuthUrl(serviceName.toLowerCase());
+      console.log('Generated auth URL:', authUrl);
+      console.log('About to redirect to:', authUrl);
+      
+      // Add a small delay to ensure state is saved
+      setTimeout(() => {
+        console.log('SessionStorage just before redirect:', JSON.stringify(sessionStorage));
+      }, 100);
+      
       window.location.href = authUrl;
+      return { error: null };
     } catch (error) {
-      console.error('Failed to initiate OAuth:', error);
+      console.error('=== OAUTH INITIATION ERROR ===');
+      console.error('Error:', error);
       return { error: error instanceof Error ? error.message : 'Failed to start OAuth flow' };
     }
   };

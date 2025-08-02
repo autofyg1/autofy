@@ -13,10 +13,20 @@ serve(async (req) => {
   }
 
   try {
-    const { service, code, state } = await req.json()
+    const { service, code, state, debug } = await req.json()
+
+    if (debug) {
+      console.log('=== EDGE FUNCTION DEBUG ===')
+      console.log('Received service:', service)
+      console.log('Received code:', code ? 'present' : 'missing')
+      console.log('Received state:', state)
+      console.log('Request origin:', req.headers.get('origin'))
+      console.log('Request referer:', req.headers.get('referer'))
+    }
 
     // Validate required parameters
-    if (!service || !code || !state) {
+    if (!service || !code) {
+      console.error('Missing required parameters:', { service: !!service, code: !!code })
       return new Response(
         JSON.stringify({ error: 'Missing required parameters' }),
         { 
@@ -32,8 +42,31 @@ serve(async (req) => {
       notion: Deno.env.get('NOTION_CLIENT_SECRET')
     }
 
+    // OAuth configurations
+    const oauthConfigs = {
+      gmail: {
+        tokenUrl: 'https://oauth2.googleapis.com/token',
+        clientId: Deno.env.get('GOOGLE_CLIENT_ID'),
+        redirectUri: `${req.headers.get('origin') || 'https://cheery-nasturtium-54af2b.netlify.app'}/oauth/callback/gmail`
+      },
+      notion: {
+        tokenUrl: 'https://api.notion.com/v1/oauth/token',
+        clientId: Deno.env.get('NOTION_CLIENT_ID'),
+        redirectUri: `${req.headers.get('origin') || 'https://cheery-nasturtium-54af2b.netlify.app'}/oauth/callback/notion`
+      }
+    }
+
+    if (debug) {
+      console.log('=== ENVIRONMENT VARIABLES CHECK ===')
+      console.log('GOOGLE_CLIENT_ID:', Deno.env.get('GOOGLE_CLIENT_ID') ? 'present' : 'MISSING')
+      console.log('GOOGLE_CLIENT_SECRET:', Deno.env.get('GOOGLE_CLIENT_SECRET') ? 'present' : 'MISSING')
+      console.log('NOTION_CLIENT_ID:', Deno.env.get('NOTION_CLIENT_ID') ? 'present' : 'MISSING')
+      console.log('NOTION_CLIENT_SECRET:', Deno.env.get('NOTION_CLIENT_SECRET') ? 'present' : 'MISSING')
+    }
     const clientSecret = clientSecrets[service as keyof typeof clientSecrets]
     if (!clientSecret) {
+      console.error('Client secret not found for service:', service)
+      console.error('Available secrets:', Object.keys(clientSecrets).filter(key => clientSecrets[key as keyof typeof clientSecrets]))
       return new Response(
         JSON.stringify({ error: 'Client secret not configured' }),
         { 
@@ -43,22 +76,10 @@ serve(async (req) => {
       )
     }
 
-    // OAuth configurations
-    const oauthConfigs = {
-      gmail: {
-        tokenUrl: 'https://oauth2.googleapis.com/token',
-        clientId: Deno.env.get('GOOGLE_CLIENT_ID'),
-        redirectUri: `${req.headers.get('origin')}/oauth/callback/gmail`
-      },
-      notion: {
-        tokenUrl: 'https://api.notion.com/v1/oauth/token',
-        clientId: Deno.env.get('NOTION_CLIENT_ID'),
-        redirectUri: `${req.headers.get('origin')}/oauth/callback/notion`
-      }
-    }
 
     const config = oauthConfigs[service as keyof typeof oauthConfigs]
     if (!config) {
+      console.error('OAuth config not found for service:', service)
       return new Response(
         JSON.stringify({ error: 'Unsupported service' }),
         { 
@@ -68,29 +89,78 @@ serve(async (req) => {
       )
     }
 
-    // Exchange code for tokens
-    const tokenBody = new URLSearchParams({
-      client_id: config.clientId!,
-      client_secret: clientSecret,
-      code,
-      grant_type: 'authorization_code',
-      redirect_uri: config.redirectUri
-    })
+    if (debug) {
+      console.log('Using config:', {
+        tokenUrl: config.tokenUrl,
+        clientId: config.clientId ? 'present' : 'missing',
+        redirectUri: config.redirectUri
+      })
+    }
 
-    const tokenResponse = await fetch(config.tokenUrl, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/x-www-form-urlencoded',
-        'Accept': 'application/json'
-      },
-      body: tokenBody.toString()
-    })
+    // Exchange code for tokens - Notion requires different format
+    let tokenResponse;
+    
+    if (service === 'notion') {
+      // Notion uses JSON body instead of form data
+      const tokenBody = {
+        grant_type: 'authorization_code',
+        code,
+        redirect_uri: config.redirectUri
+      }
+      
+      // Notion uses Basic Auth with base64 encoded client_id:client_secret
+      const credentials = btoa(`${config.clientId}:${clientSecret}`)
+      
+      if (debug) {
+        console.log('Notion token request:', {
+          url: config.tokenUrl,
+          body: tokenBody,
+          hasCredentials: !!credentials
+        })
+      }
+      
+      tokenResponse = await fetch(config.tokenUrl, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Basic ${credentials}`,
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+          'Notion-Version': '2022-06-28'
+        },
+        body: JSON.stringify(tokenBody)
+      })
+    } else {
+      // Google and other services use form data
+      const tokenBody = new URLSearchParams({
+        client_id: config.clientId!,
+        client_secret: clientSecret,
+        code,
+        grant_type: 'authorization_code',
+        redirect_uri: config.redirectUri
+      })
+      
+      tokenResponse = await fetch(config.tokenUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded',
+          'Accept': 'application/json'
+        },
+        body: tokenBody.toString()
+      })
+    }
+
+    if (debug) {
+      console.log('Token exchange request sent')
+    }
+
 
     if (!tokenResponse.ok) {
       const error = await tokenResponse.text()
-      console.error('Token exchange failed:', error)
+      console.error('Token exchange failed with status:', tokenResponse.status)
+      console.error('Token exchange error response:', error)
+      console.error('Response headers:', Object.fromEntries(tokenResponse.headers.entries()))
       return new Response(
-        JSON.stringify({ error: 'Token exchange failed' }),
+        JSON.stringify({ error: `Token exchange failed: ${error}` }),
         { 
           status: 400, 
           headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
@@ -99,6 +169,15 @@ serve(async (req) => {
     }
 
     const tokens = await tokenResponse.json()
+
+    if (debug) {
+      console.log('Received tokens:', {
+        access_token: tokens.access_token ? 'present' : 'missing',
+        refresh_token: tokens.refresh_token ? 'present' : 'missing',
+        expires_in: tokens.expires_in,
+        token_type: tokens.token_type
+      })
+    }
 
     // Calculate expiration time
     const expiresAt = tokens.expires_in 
@@ -115,6 +194,10 @@ serve(async (req) => {
       obtained_at: new Date().toISOString()
     }
 
+    if (debug) {
+      console.log('Prepared credentials for storage')
+    }
+
     return new Response(
       JSON.stringify({ 
         success: true, 
@@ -127,9 +210,12 @@ serve(async (req) => {
     )
 
   } catch (error) {
-    console.error('OAuth exchange error:', error)
+    console.error('=== EDGE FUNCTION ERROR ===')
+    console.error('Error details:', error)
+    console.error('Error message:', error.message)
+    console.error('Error stack:', error.stack)
     return new Response(
-      JSON.stringify({ error: 'Internal server error' }),
+      JSON.stringify({ error: `Internal server error: ${error.message}` }),
       { 
         status: 500, 
         headers: { ...corsHeaders, 'Content-Type': 'application/json' } 

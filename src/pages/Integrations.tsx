@@ -202,15 +202,19 @@ const Integrations: React.FC = () => {
     const oauthServices = ['gmail', 'notion'];
     const serviceName = app.name.toLowerCase();
     
+    console.log('Connecting integration:', serviceName);
+    
     if (oauthServices.includes(serviceName)) {
       // Initiate OAuth flow
+      console.log('Using OAuth flow for:', serviceName);
       const { error } = initiateOAuth(serviceName);
       if (error) {
         console.error('Failed to initiate OAuth:', error);
-        // You could show a toast notification here
+        alert(`Failed to start OAuth flow: ${error}`);
       }
     } else {
       // Fallback to mock credentials for other services
+      console.log('Using mock credentials for:', serviceName);
       setConnectingService(app.name);
       
       const mockCredentials = {
