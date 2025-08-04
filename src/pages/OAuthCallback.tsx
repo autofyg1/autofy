@@ -1,5 +1,5 @@
-import React, { useEffect, useState } from 'react';
-import { useParams, useSearchParams, useNavigate } from 'react-router-dom';
+import React, { useEffect, useState, useRef } from 'react';
+import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { useIntegrations } from '../hooks/useIntegrations';
 import { supabase } from '../lib/supabase';
@@ -7,26 +7,60 @@ import { Loader2, CheckCircle, AlertCircle } from 'lucide-react';
 
 const OAuthCallback: React.FC = () => {
   const { service } = useParams<{ service: string }>();
-  const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const { user } = useAuth();
   const { connectIntegration } = useIntegrations();
   
   const [status, setStatus] = useState<'loading' | 'success' | 'error'>('loading');
   const [message, setMessage] = useState('Processing authentication...');
+  const isProcessing = useRef(false);
 
   useEffect(() => {
     const handleOAuthCallback = async () => {
+      // Prevent multiple executions
+      if (isProcessing.current) {
+        console.log('OAuth callback already processing, skipping...');
+        return;
+      }
+
+      // Check if we've already processed this exact URL
+      const currentUrl = window.location.href;
+      const processedKey = `processed_${btoa(currentUrl)}`;
+      if (sessionStorage.getItem(processedKey)) {
+        console.log('OAuth callback already processed for this URL, skipping...');
+        return;
+      }
+
+      // Check if we're in the middle of processing (e.g., after page refresh)
+      const processingKey = `processing_${service}`;
+      if (sessionStorage.getItem(processingKey)) {
+        console.log('OAuth callback was interrupted, redirecting to integrations...');
+        navigate('/integrations');
+        return;
+      }
+
+      isProcessing.current = true;
+      sessionStorage.setItem(processingKey, 'true');
+
       try {
         console.log('=== OAUTH CALLBACK STARTED ===');
         console.log('Current URL:', window.location.href);
         console.log('Service from params:', service);
         console.log('Current sessionStorage:', JSON.stringify(sessionStorage));
         
-        // Get parameters from URL
-        const code = searchParams.get('code');
-        const state = searchParams.get('state');
-        const error = searchParams.get('error');
+        // Mark this URL as being processed
+        sessionStorage.setItem(processedKey, 'true');
+        
+        // Clean up processed markers after 5 minutes to prevent sessionStorage buildup
+        setTimeout(() => {
+          sessionStorage.removeItem(processedKey);
+        }, 5 * 60 * 1000);
+        
+        // Get parameters from URL using URLSearchParams directly
+        const urlParams = new URLSearchParams(window.location.search);
+        const code = urlParams.get('code');
+        const state = urlParams.get('state');
+        const error = urlParams.get('error');
         
         console.log('URL Parameters:');
         console.log('- code:', code ? 'present' : 'missing');
@@ -113,6 +147,11 @@ const OAuthCallback: React.FC = () => {
           throw new Error(integrationError);
         }
 
+        // Clear OAuth state after successful processing
+        sessionStorage.removeItem('oauth_state');
+        sessionStorage.removeItem(`oauth_state_${service}`);
+        sessionStorage.removeItem(processingKey);
+
         console.log('=== SUCCESS ===');
         setStatus('success');
         setMessage(`Successfully connected ${service.charAt(0).toUpperCase() + service.slice(1)}!`);
@@ -129,15 +168,22 @@ const OAuthCallback: React.FC = () => {
         setStatus('error');
         setMessage(error instanceof Error ? error.message : 'Authentication failed');
         
+        // Clear OAuth state on error as well
+        sessionStorage.removeItem('oauth_state');
+        sessionStorage.removeItem(`oauth_state_${service}`);
+        sessionStorage.removeItem(processingKey);
+        
         // Redirect to integrations page after error
         setTimeout(() => {
           navigate('/integrations');
         }, 3000);
+      } finally {
+        isProcessing.current = false;
       }
     };
 
     handleOAuthCallback();
-  }, [searchParams, service, user, connectIntegration, navigate]);
+  }, [service, user, connectIntegration, navigate]); // Removed searchParams from dependencies
 
   const getStatusIcon = () => {
     switch (status) {

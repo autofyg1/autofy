@@ -1,11 +1,19 @@
 import React, { useEffect, useRef, useState } from 'react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { gsap } from 'gsap';
 import Sidebar from '../components/Sidebar';
+import ZapStepConfig from '../components/ZapStepConfig';
+import { useZaps } from '../hooks/useZaps';
+import { useIntegrations } from '../hooks/useIntegrations';
+import { getServiceConfig } from '../lib/zaps';
 import { 
   Plus, 
   Play, 
   Save, 
   ArrowRight,
+  Check,
+  AlertCircle,
+  Loader2,
   Mail, 
   MessageSquare, 
   Calendar,
@@ -23,22 +31,31 @@ interface Step {
   event?: string;
   icon?: React.ElementType;
   isConfigured: boolean;
+  configuration: Record<string, any>;
 }
 
 const ZapBuilder: React.FC = () => {
   const builderRef = useRef<HTMLDivElement>(null);
+  const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const { createZap } = useZaps();
+  const { integrations, isConnected } = useIntegrations();
+  
   const [steps, setSteps] = useState<Step[]>([
-    { id: '1', type: 'trigger', isConfigured: false },
-    { id: '2', type: 'action', isConfigured: false }
+    { id: '1', type: 'trigger', isConfigured: false, configuration: {} },
+    { id: '2', type: 'action', isConfigured: false, configuration: {} }
   ]);
   const [selectedStep, setSelectedStep] = useState<string | null>(null);
-  const [showApps, setShowApps] = useState(false);
+  const [zapName, setZapName] = useState('');
+  const [zapDescription, setZapDescription] = useState('');
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const apps = [
     { name: 'Gmail', icon: Mail, color: 'bg-red-500' },
     { name: 'Slack', icon: MessageSquare, color: 'bg-purple-500' },
     { name: 'Google Calendar', icon: Calendar, color: 'bg-blue-500' },
-    { name: 'Database', icon: Database, color: 'bg-green-500' },
+    { name: 'Notion', icon: Database, color: 'bg-green-500' },
     { name: 'Notifications', icon: Bell, color: 'bg-yellow-500' },
     { name: 'Google Docs', icon: FileText, color: 'bg-blue-600' },
     { name: 'Teams', icon: Users, color: 'bg-indigo-500' },
@@ -73,27 +90,116 @@ const ZapBuilder: React.FC = () => {
   }, []);
 
   const configureStep = (stepId: string, app: string, icon: React.ElementType) => {
+    const serviceName = app.toLowerCase().replace(/\s+/g, '');
+    
+    // Check if user has connected this service
+    if (!isConnected(serviceName)) {
+      setError(`Please connect ${app} first in the Integrations page`);
+      return;
+    }
+    
     setSteps(prev => prev.map(step => 
       step.id === stepId 
-        ? { ...step, app, icon, isConfigured: true, event: `New ${app} Event` }
+        ? { ...step, app, icon, isConfigured: false, event: '', configuration: {} }
         : step
     ));
     setSelectedStep(null);
-    setShowApps(false);
+    setError(null);
   };
 
   const addStep = () => {
     const newStep: Step = {
       id: Date.now().toString(),
       type: 'action',
-      isConfigured: false
+      isConfigured: false,
+      configuration: {}
     };
     setSteps(prev => [...prev, newStep]);
   };
 
   const selectStep = (stepId: string) => {
     setSelectedStep(stepId);
-    setShowApps(true);
+  };
+
+  const updateStepConfig = (stepId: string, configuration: Record<string, any>) => {
+    setSteps(prev => prev.map(step => 
+      step.id === stepId 
+        ? { ...step, configuration, isConfigured: isStepConfigured(step, configuration) }
+        : step
+    ));
+  };
+
+  const updateStepEvent = (stepId: string, eventType: string) => {
+    setSteps(prev => prev.map(step => 
+      step.id === stepId 
+        ? { ...step, event: eventType, configuration: {}, isConfigured: false }
+        : step
+    ));
+  };
+
+  const isStepConfigured = (step: Step, config?: Record<string, any>) => {
+    if (!step.app || !step.event) return false;
+    
+    const serviceName = step.app.toLowerCase().replace(/\s+/g, '');
+    const serviceConfig = getServiceConfig(serviceName);
+    if (!serviceConfig) return false;
+
+    const events = step.type === 'trigger' ? serviceConfig.triggers : serviceConfig.actions;
+    const eventConfig = events.find(e => e.id === step.event);
+    if (!eventConfig) return false;
+
+    const configuration = config || step.configuration;
+    
+    // Check if all required fields are filled
+    return eventConfig.fields.every(field => {
+      if (!field.required) return true;
+      const value = configuration[field.key];
+      return value && value.toString().trim() !== '';
+    });
+  };
+
+  const canSaveZap = () => {
+    return zapName.trim() !== '' && 
+           steps.length >= 2 && 
+           steps.every(step => step.isConfigured);
+  };
+
+  const handleSaveZap = async () => {
+    if (!canSaveZap()) {
+      setError('Please complete all steps and provide a zap name');
+      return;
+    }
+
+    setSaving(true);
+    setError(null);
+
+    try {
+      const zapConfig = {
+        name: zapName,
+        description: zapDescription,
+        steps: steps.map(step => ({
+          step_type: step.type,
+          service_name: step.app!.toLowerCase().replace(/\s+/g, ''),
+          event_type: step.event!,
+          configuration: step.configuration
+        }))
+      };
+
+      const { data, error } = await createZap(zapConfig);
+      
+      if (error) {
+        setError(error);
+        return;
+      }
+
+      // Redirect to dashboard with success message
+      navigate('/dashboard?created=true');
+      
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to save zap');
+    } finally {
+      setSaving(false);
+    }
   };
 
   return (
@@ -109,15 +215,16 @@ const ZapBuilder: React.FC = () => {
               <p className="text-gray-400 mt-1">Create your automation workflow</p>
             </div>
             <div className="flex items-center space-x-4">
-              <button className="px-6 py-3 bg-green-600 hover:bg-green-700 text-white rounded-lg font-medium transition-colors duration-300 flex items-center space-x-2">
-                <Play className="w-4 h-4" />
-                <span>Test Zap</span>
-              </button>
-              <button className="px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors duration-300 flex items-center space-x-2">
-                <Save className="w-4 h-4" />
-                <span>Save Zap</span>
-              </button>
-            </div>
+  <button
+    onClick={handleSaveZap}
+    disabled={saving}
+    className="px-6 py-3 bg-green-600 hover:bg-green-700 text-white rounded-lg font-medium transition-colors duration-300 flex items-center space-x-2 disabled:opacity-50 disabled:cursor-not-allowed"
+  >
+    {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+    <span>{saving ? 'Saving...' : 'Save & Activate'}</span>
+  </button>
+</div>
+
           </div>
         </div>
 
@@ -125,19 +232,47 @@ const ZapBuilder: React.FC = () => {
           {/* Apps Sidebar */}
           <div className="w-80 bg-gray-800 border-r border-gray-700 p-6">
             <h2 className="text-lg font-semibold text-white mb-4">Available Apps</h2>
+            
+            {/* Error Message */}
+            {error && (
+              <div className="mb-4 p-3 bg-red-500/10 border border-red-500/30 rounded-lg">
+                <div className="flex items-center space-x-2">
+                  <AlertCircle className="w-4 h-4 text-red-400" />
+                  <p className="text-red-400 text-sm">{error}</p>
+                </div>
+              </div>
+            )}
+            
             <div className="grid grid-cols-2 gap-3">
               {apps.map((app, index) => {
                 const Icon = app.icon;
+                const serviceName = app.name.toLowerCase().replace(/\s+/g, '');
+                const connected = isConnected(serviceName);
+                
                 return (
                   <div
                     key={app.name}
-                    className="app-card p-4 bg-gray-700 rounded-lg border border-gray-600 hover:border-blue-500/50 cursor-pointer transition-all duration-300 group"
+                    className={`app-card p-4 bg-gray-700 rounded-lg border transition-all duration-300 group ${
+                      connected 
+                        ? 'border-gray-600 hover:border-blue-500/50 cursor-pointer' 
+                        : 'border-gray-600 opacity-50 cursor-not-allowed'
+                    }`}
                     onClick={() => selectedStep && configureStep(selectedStep, app.name, app.icon)}
                   >
-                    <div className={`w-10 h-10 ${app.color} rounded-lg flex items-center justify-center mb-2 group-hover:scale-110 transition-transform duration-300`}>
+                    <div className={`w-10 h-10 ${app.color} rounded-lg flex items-center justify-center mb-2 ${connected ? 'group-hover:scale-110' : ''} transition-transform duration-300 relative`}>
                       <Icon className="w-5 h-5 text-white" />
+                      {connected && (
+                        <div className="absolute -top-1 -right-1 w-3 h-3 bg-green-500 rounded-full flex items-center justify-center">
+                          <Check className="w-2 h-2 text-white" />
+                        </div>
+                      )}
                     </div>
-                    <p className="text-sm font-medium text-white">{app.name}</p>
+                    <p className={`text-sm font-medium ${connected ? 'text-white' : 'text-gray-400'}`}>
+                      {app.name}
+                    </p>
+                    {!connected && (
+                      <p className="text-xs text-red-400 mt-1">Not connected</p>
+                    )}
                   </div>
                 );
               })}
@@ -161,6 +296,37 @@ const ZapBuilder: React.FC = () => {
           {/* Builder Canvas */}
           <div ref={builderRef} className="flex-1 p-8">
             <div className="max-w-4xl mx-auto">
+              {/* Zap Details */}
+              <div className="mb-8 p-6 bg-gray-800 rounded-xl border border-gray-700">
+                <h2 className="text-xl font-semibold text-white mb-4">Zap Details</h2>
+                <div className="grid md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-300 mb-2">
+                      Zap Name <span className="text-red-400">*</span>
+                    </label>
+                    <input
+                      type="text"
+                      value={zapName}
+                      onChange={(e) => setZapName(e.target.value)}
+                      placeholder="e.g., Gmail to Notion Integration"
+                      className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:border-blue-500 focus:outline-none"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-300 mb-2">
+                      Description (optional)
+                    </label>
+                    <input
+                      type="text"
+                      value={zapDescription}
+                      onChange={(e) => setZapDescription(e.target.value)}
+                      placeholder="Brief description of what this zap does"
+                      className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:border-blue-500 focus:outline-none"
+                    />
+                  </div>
+                </div>
+              </div>
+
               <h2 className="text-xl font-semibold text-white mb-8">Workflow Steps</h2>
               
               <div className="space-y-6">
@@ -214,6 +380,20 @@ const ZapBuilder: React.FC = () => {
                         </div>
                       </div>
                       
+                      {/* Step Configuration */}
+                      {step.app && step.app !== '' && (
+                        <div className="mt-4">
+                          <ZapStepConfig
+                            stepType={step.type}
+                            serviceName={step.app.toLowerCase().replace(/\s+/g, '')}
+                            eventType={step.event || ''}
+                            configuration={step.configuration}
+                            onConfigChange={(config) => updateStepConfig(step.id, config)}
+                            onEventChange={(eventType) => updateStepEvent(step.id, eventType)}
+                          />
+                        </div>
+                      )}
+                      
                       {!isLast && (
                         <div className="flex justify-center py-4">
                           <div className="flex items-center space-x-2 text-gray-400">
@@ -241,11 +421,19 @@ const ZapBuilder: React.FC = () => {
               
               {/* Action Buttons */}
               <div className="flex justify-center space-x-4 mt-12 pt-8 border-t border-gray-700">
-                <button className="px-8 py-3 bg-gradient-to-r from-blue-500 to-violet-500 text-white rounded-lg font-medium hover:scale-105 transition-transform duration-300">
-                  Save & Activate Zap
+                <button 
+                  onClick={handleSaveZap}
+                  disabled={!canSaveZap() || saving}
+                  className="px-8 py-3 bg-gradient-to-r from-blue-500 to-violet-500 text-white rounded-lg font-medium hover:scale-105 transition-transform duration-300 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100 flex items-center space-x-2"
+                >
+                  {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+                  <span>{saving ? 'Saving Zap...' : 'Save & Activate Zap'}</span>
                 </button>
-                <button className="px-8 py-3 border border-gray-600 text-gray-300 rounded-lg font-medium hover:border-gray-500 transition-colors duration-300">
-                  Save as Draft
+                <button 
+                  onClick={() => navigate('/dashboard')}
+                  className="px-8 py-3 border border-gray-600 text-gray-300 rounded-lg font-medium hover:border-gray-500 transition-colors duration-300"
+                >
+                  Cancel
                 </button>
               </div>
             </div>

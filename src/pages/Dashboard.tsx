@@ -1,7 +1,8 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import { gsap } from 'gsap';
 import Sidebar from '../components/Sidebar';
+import { useZaps } from '../hooks/useZaps';
 import { 
   Plus, 
   Play, 
@@ -14,61 +15,35 @@ import {
   Database,
   Clock,
   CheckCircle,
-  AlertCircle
+  AlertCircle,
+  FileText
 } from 'lucide-react';
 
-interface Zap {
-  id: string;
-  name: string;
-  trigger: {
-    app: string;
-    event: string;
-    icon: React.ElementType;
-  };
-  action: {
-    app: string;
-    event: string;
-    icon: React.ElementType;
-  };
-  isActive: boolean;
-  lastRun: string;
-  totalRuns: number;
-}
+// Icon mapping for services
+const serviceIcons: Record<string, React.ElementType> = {
+  gmail: Mail,
+  slack: MessageSquare,
+  'google calendar': Calendar,
+  notion: FileText,
+  database: Database,
+  schedule: Clock,
+  notifications: AlertCircle
+};
 
 const Dashboard: React.FC = () => {
   const cardsRef = useRef<HTMLDivElement>(null);
   const fabRef = useRef<HTMLButtonElement>(null);
-  const [zaps, setZaps] = useState<Zap[]>([
-    {
-      id: '1',
-      name: 'Email to Slack Notifications',
-      trigger: { app: 'Gmail', event: 'New Email', icon: Mail },
-      action: { app: 'Slack', event: 'Send Message', icon: MessageSquare },
-      isActive: true,
-      lastRun: '2 minutes ago',
-      totalRuns: 127
-    },
-    {
-      id: '2',
-      name: 'Calendar Event Reminders',
-      trigger: { app: 'Google Calendar', event: 'New Event', icon: Calendar },
-      action: { app: 'Slack', event: 'Send Reminder', icon: MessageSquare },
-      isActive: true,
-      lastRun: '1 hour ago',
-      totalRuns: 89
-    },
-    {
-      id: '3',
-      name: 'Database Backup Automation',
-      trigger: { app: 'Schedule', event: 'Daily at 2 AM', icon: Clock },
-      action: { app: 'Database', event: 'Create Backup', icon: Database },
-      isActive: false,
-      lastRun: '1 day ago',
-      totalRuns: 45
-    }
-  ]);
+  const [searchParams] = useSearchParams();
+  const { zaps, loading, toggleZapStatus, deleteZap: removeZap } = useZaps();
+  const [showSuccessMessage, setShowSuccessMessage] = useState(false);
 
   useEffect(() => {
+    // Check if we just created a zap
+    if (searchParams.get('created') === 'true') {
+      setShowSuccessMessage(true);
+      setTimeout(() => setShowSuccessMessage(false), 5000);
+    }
+    
     // Animate Zap cards
     if (cardsRef.current) {
       gsap.fromTo('.zap-card',
@@ -100,16 +75,36 @@ const Dashboard: React.FC = () => {
         ease: "power2.inOut"
       });
     }
-  }, []);
+  }, [searchParams]);
 
-  const toggleZap = (id: string) => {
-    setZaps(prev => prev.map(zap => 
-      zap.id === id ? { ...zap, isActive: !zap.isActive } : zap
-    ));
+  const handleToggleZap = (id: string) => {
+    toggleZapStatus(id);
   };
 
-  const deleteZap = (id: string) => {
-    setZaps(prev => prev.filter(zap => zap.id !== id));
+  const handleDeleteZap = (id: string) => {
+    if (confirm('Are you sure you want to delete this zap?')) {
+      removeZap(id);
+    }
+  };
+
+  const getServiceIcon = (serviceName: string) => {
+    return serviceIcons[serviceName.toLowerCase()] || AlertCircle;
+  };
+
+  const formatLastRun = (lastRunAt?: string) => {
+    if (!lastRunAt) return 'Never';
+    
+    const date = new Date(lastRunAt);
+    const now = new Date();
+    const diffMs = now.getTime() - date.getTime();
+    const diffMins = Math.floor(diffMs / (1000 * 60));
+    const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
+    const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+    
+    if (diffMins < 1) return 'Just now';
+    if (diffMins < 60) return `${diffMins} minutes ago`;
+    if (diffHours < 24) return `${diffHours} hours ago`;
+    return `${diffDays} days ago`;
   };
 
   return (
@@ -119,6 +114,16 @@ const Dashboard: React.FC = () => {
       <div className="flex-1">
         {/* Header */}
         <div className="bg-gray-800 border-b border-gray-700 px-8 py-6">
+          {/* Success Message */}
+          {showSuccessMessage && (
+            <div className="mb-4 p-4 bg-green-500/10 border border-green-500/30 rounded-lg">
+              <div className="flex items-center space-x-2">
+                <CheckCircle className="w-5 h-5 text-green-400" />
+                <p className="text-green-400">Zap created successfully!</p>
+              </div>
+            </div>
+          )}
+          
           <div className="flex items-center justify-between">
             <div>
               <h1 className="text-2xl font-bold text-white">My Zaps</h1>
@@ -128,13 +133,13 @@ const Dashboard: React.FC = () => {
               <div className="bg-gray-700 px-4 py-2 rounded-lg">
                 <span className="text-sm text-gray-300">Active: </span>
                 <span className="text-green-400 font-semibold">
-                  {zaps.filter(z => z.isActive).length}
+                  {zaps.filter(z => z.is_active).length}
                 </span>
               </div>
               <div className="bg-gray-700 px-4 py-2 rounded-lg">
                 <span className="text-sm text-gray-300">Total Runs: </span>
                 <span className="text-blue-400 font-semibold">
-                  {zaps.reduce((sum, z) => sum + z.totalRuns, 0)}
+                  {zaps.reduce((sum, z) => sum + z.total_runs, 0)}
                 </span>
               </div>
             </div>
@@ -143,10 +148,19 @@ const Dashboard: React.FC = () => {
 
         {/* Main Content */}
         <div className="p-8">
+          {loading ? (
+            <div className="text-center py-16">
+              <div className="w-8 h-8 border-2 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+              <p className="text-gray-400">Loading your zaps...</p>
+            </div>
+          ) : (
           <div ref={cardsRef} className="grid gap-6">
             {zaps.map((zap) => {
-              const TriggerIcon = zap.trigger.icon;
-              const ActionIcon = zap.action.icon;
+              const triggerStep = zap.steps?.find(s => s.step_type === 'trigger');
+              const actionStep = zap.steps?.find(s => s.step_type === 'action');
+              
+              const TriggerIcon = triggerStep ? getServiceIcon(triggerStep.service_name) : AlertCircle;
+              const ActionIcon = actionStep ? getServiceIcon(actionStep.service_name) : AlertCircle;
               
               return (
                 <div 
@@ -160,12 +174,12 @@ const Dashboard: React.FC = () => {
                           {zap.name}
                         </h3>
                         <div className={`flex items-center space-x-1 px-2 py-1 rounded-full text-xs font-medium ${
-                          zap.isActive 
+                          zap.is_active 
                             ? 'bg-green-500/20 text-green-400' 
                             : 'bg-gray-500/20 text-gray-400'
                         }`}>
-                          {zap.isActive ? <CheckCircle className="w-3 h-3" /> : <AlertCircle className="w-3 h-3" />}
-                          <span>{zap.isActive ? 'Active' : 'Inactive'}</span>
+                          {zap.is_active ? <CheckCircle className="w-3 h-3" /> : <AlertCircle className="w-3 h-3" />}
+                          <span>{zap.is_active ? 'Active' : 'Inactive'}</span>
                         </div>
                       </div>
 
@@ -176,8 +190,12 @@ const Dashboard: React.FC = () => {
                             <TriggerIcon className="w-5 h-5 text-blue-400" />
                           </div>
                           <div>
-                            <p className="font-medium text-white">{zap.trigger.app}</p>
-                            <p className="text-sm text-gray-400">{zap.trigger.event}</p>
+                            <p className="font-medium text-white capitalize">
+                              {triggerStep?.service_name || 'Unknown'}
+                            </p>
+                            <p className="text-sm text-gray-400">
+                              {triggerStep?.event_type?.replace(/_/g, ' ') || 'Unknown event'}
+                            </p>
                           </div>
                         </div>
 
@@ -192,18 +210,22 @@ const Dashboard: React.FC = () => {
                             <ActionIcon className="w-5 h-5 text-green-400" />
                           </div>
                           <div>
-                            <p className="font-medium text-white">{zap.action.app}</p>
-                            <p className="text-sm text-gray-400">{zap.action.event}</p>
+                            <p className="font-medium text-white capitalize">
+                              {actionStep?.service_name || 'Unknown'}
+                            </p>
+                            <p className="text-sm text-gray-400">
+                              {actionStep?.event_type?.replace(/_/g, ' ') || 'Unknown event'}
+                            </p>
                           </div>
                         </div>
                       </div>
 
                       <div className="flex items-center space-x-6 text-sm">
                         <span className="text-gray-400">
-                          Last run: <span className="text-white">{zap.lastRun}</span>
+                          Last run: <span className="text-white">{formatLastRun(zap.last_run_at)}</span>
                         </span>
                         <span className="text-gray-400">
-                          Total runs: <span className="text-white">{zap.totalRuns}</span>
+                          Total runs: <span className="text-white">{zap.total_runs}</span>
                         </span>
                       </div>
                     </div>
@@ -211,15 +233,15 @@ const Dashboard: React.FC = () => {
                     {/* Actions */}
                     <div className="flex items-center space-x-2 ml-6">
                       <button
-                        onClick={() => toggleZap(zap.id)}
+                        onClick={() => handleToggleZap(zap.id)}
                         className={`p-2 rounded-lg transition-all duration-300 ${
-                          zap.isActive
+                          zap.is_active
                             ? 'bg-green-500/20 text-green-400 hover:bg-green-500/30'
                             : 'bg-gray-600/20 text-gray-400 hover:bg-gray-600/30'
                         }`}
-                        title={zap.isActive ? 'Pause Zap' : 'Start Zap'}
+                        title={zap.is_active ? 'Pause Zap' : 'Start Zap'}
                       >
-                        {zap.isActive ? <Pause className="w-4 h-4" /> : <Play className="w-4 h-4" />}
+                        {zap.is_active ? <Pause className="w-4 h-4" /> : <Play className="w-4 h-4" />}
                       </button>
                       
                       <Link
@@ -231,7 +253,7 @@ const Dashboard: React.FC = () => {
                       </Link>
                       
                       <button
-                        onClick={() => deleteZap(zap.id)}
+                        onClick={() => handleDeleteZap(zap.id)}
                         className="p-2 rounded-lg bg-red-500/20 text-red-400 hover:bg-red-500/30 transition-all duration-300"
                         title="Delete Zap"
                       >
@@ -243,6 +265,7 @@ const Dashboard: React.FC = () => {
               );
             })}
           </div>
+          )}
 
           {zaps.length === 0 && (
             <div className="text-center py-16">
