@@ -22,7 +22,10 @@ import {
   Camera,
   ShoppingCart,
   CreditCard,
-  Cloud
+  Cloud,
+  CheckCircle,
+  AlertCircle,
+  TestTube
 } from 'lucide-react';
 
 interface IntegrationApp {
@@ -43,6 +46,8 @@ const Integrations: React.FC = () => {
   const [selectedCategory, setSelectedCategory] = useState('All');
   const [sortBy, setSortBy] = useState('popularity');
   const [connectingService, setConnectingService] = useState<string | null>(null);
+  const [testingDatabase, setTestingDatabase] = useState<string | null>(null);
+  const [testResult, setTestResult] = useState<{ success: boolean; message: string } | null>(null);
 
   const availableApps: IntegrationApp[] = [
     {
@@ -243,6 +248,47 @@ const Integrations: React.FC = () => {
     }
   };
 
+  const testNotionDatabase = async (databaseId: string) => {
+    setTestingDatabase(databaseId);
+    setTestResult(null);
+
+    try {
+      const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/zap-executor`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          action: 'test_database',
+          databaseId,
+          userId: integrations.find(i => i.service_name === 'notion')?.user_id
+        })
+      });
+
+      const result = await response.json();
+      
+      if (result.success) {
+        setTestResult({
+          success: true,
+          message: `✅ Database access verified! Database: ${result.databaseName || 'Unknown'}`
+        });
+      } else {
+        setTestResult({
+          success: false,
+          message: `❌ Database access failed: ${result.error}`
+        });
+      }
+    } catch (error) {
+      setTestResult({
+        success: false,
+        message: `❌ Test failed: ${error instanceof Error ? error.message : 'Unknown error'}`
+      });
+    } finally {
+      setTestingDatabase(null);
+    }
+  };
+
   return (
     <div className="flex min-h-screen bg-gray-900">
       <Sidebar />
@@ -305,7 +351,7 @@ const Integrations: React.FC = () => {
               <Filter className="w-5 h-5 text-gray-400" />
               <select
                 value={sortBy}
-                onChange={(e) => setSortBy(e.target.value)}
+                onChange={(e) => setSortBy(e.target.value as 'name' | 'automations')}
                 className="px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:border-blue-500 focus:outline-none"
               >
                 <option value="popularity">Most Popular</option>
@@ -398,6 +444,74 @@ const Integrations: React.FC = () => {
             </div>
           )}
         </div>
+
+        {/* Database Test Section */}
+        {isConnected('notion') && (
+          <div className="mb-8 p-6 bg-gray-800 rounded-lg border border-gray-700">
+            <h3 className="text-lg font-semibold text-white mb-4 flex items-center">
+              <TestTube className="w-5 h-5 mr-2 text-blue-400" />
+              Test Notion Database Access
+            </h3>
+            <p className="text-gray-400 mb-4">
+              Test if your Notion integration can access a specific database. Enter a database ID to verify permissions.
+            </p>
+            
+            <div className="flex gap-4 items-end">
+              <div className="flex-1">
+                <label className="block text-sm font-medium text-gray-300 mb-2">
+                  Database ID
+                </label>
+                <input
+                  type="text"
+                  placeholder="e.g., 245c6d543dcf805b9b0ef5c372f58e3c"
+                  className="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  id="databaseTestInput"
+                />
+              </div>
+              <button
+                onClick={() => {
+                  const input = document.getElementById('databaseTestInput') as HTMLInputElement;
+                  if (input.value.trim()) {
+                    testNotionDatabase(input.value.trim());
+                  }
+                }}
+                disabled={testingDatabase !== null}
+                className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center"
+              >
+                {testingDatabase ? (
+                  <>
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                    Testing...
+                  </>
+                ) : (
+                  <>
+                    <TestTube className="w-4 h-4 mr-2" />
+                    Test Access
+                  </>
+                )}
+              </button>
+            </div>
+
+            {testResult && (
+              <div className={`mt-4 p-4 rounded-lg ${
+                testResult.success 
+                  ? 'bg-green-900/20 border border-green-700' 
+                  : 'bg-red-900/20 border border-red-700'
+              }`}>
+                <div className="flex items-center">
+                  {testResult.success ? (
+                    <CheckCircle className="w-5 h-5 text-green-400 mr-2" />
+                  ) : (
+                    <AlertCircle className="w-5 h-5 text-red-400 mr-2" />
+                  )}
+                  <span className={testResult.success ? 'text-green-300' : 'text-red-300'}>
+                    {testResult.message}
+                  </span>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
       </div>
     </div>
   );

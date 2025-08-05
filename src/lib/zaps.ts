@@ -38,10 +38,17 @@ export interface ZapConfiguration {
 // Create a new zap
 export const createZap = async (config: ZapConfiguration): Promise<{ data: Zap | null; error: string | null }> => {
   try {
+    // Get current user
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) {
+      throw new Error('User not authenticated');
+    }
+
     // First create the zap
     const { data: zapData, error: zapError } = await supabase
       .from('zaps')
       .insert({
+        user_id: user.id,
         name: config.name,
         description: config.description || '',
         is_active: false
