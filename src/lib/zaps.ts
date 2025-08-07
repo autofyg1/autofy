@@ -199,6 +199,63 @@ export const serviceConfigs = {
     ],
     actions: []
   },
+  openrouter: {
+    name: 'AI Processing',
+    triggers: [],
+    actions: [
+      {
+        id: 'process_with_ai',
+        name: 'Process with AI',
+        description: 'Process email content using AI models',
+        fields: [
+          {
+            key: 'model',
+            label: 'AI Model',
+            type: 'select',
+            placeholder: 'Select AI model',
+            required: true,
+            description: 'Choose the AI model to process your email',
+            options: [
+              { value: 'meta-llama/llama-3.2-3b-instruct:free', label: 'Llama 3.2 3B (Recommended)' },
+              { value: 'meta-llama/llama-3.2-1b-instruct:free', label: 'Llama 3.2 1B (Fast)' },
+              { value: 'microsoft/phi-3-mini-128k-instruct:free', label: 'Phi 3 Mini' },
+              { value: 'microsoft/phi-3-medium-128k-instruct:free', label: 'Phi 3 Medium' },
+              { value: 'mistralai/mistral-7b-instruct:free', label: 'Mistral 7B' },
+              { value: 'huggingface/zephyr-7b-beta:free', label: 'Zephyr 7B' },
+              { value: 'openchat/openchat-7b:free', label: 'OpenChat 7B' },
+              { value: 'google/gemma-7b-it:free', label: 'Gemma 7B' },
+              { value: 'qwen/qwen-2-7b-instruct:free', label: 'Qwen 2 7B' },
+              { value: 'gryphe/mythomist-7b:free', label: 'Mythomist 7B' }
+            ]
+          },
+          {
+            key: 'prompt',
+            label: 'AI Prompt',
+            type: 'textarea',
+            placeholder: 'Summarize this email in bullet points:\n\n{{body}}',
+            required: true,
+            description: 'Instructions for the AI. Use {{subject}}, {{sender}}, {{body}}, {{date}} for dynamic values'
+          },
+          {
+            key: 'max_tokens',
+            label: 'Max Tokens (optional)',
+            type: 'number',
+            placeholder: '1000',
+            required: false,
+            description: 'Maximum number of tokens in the AI response (default: 1000)'
+          },
+          {
+            key: 'temperature',
+            label: 'Temperature (optional)',
+            type: 'number',
+            placeholder: '0.7',
+            required: false,
+            description: 'Controls randomness: 0.0 = focused, 1.0 = creative (default: 0.7)'
+          }
+        ]
+      }
+    ]
+  },
   notion: {
     name: 'Notion',
     triggers: [],
@@ -228,9 +285,9 @@ export const serviceConfigs = {
             key: 'content_template',
             label: 'Page Content Template',
             type: 'textarea',
-            placeholder: 'Email content: {{body}}',
+            placeholder: 'Original: {{body}}\n\nAI Summary: {{ai_content}}',
             required: false,
-            description: 'Template for the page content. Use {{field}} for dynamic values'
+            description: 'Template for the page content. Use {{field}} for dynamic values. Available: {{ai_content}} if AI processed'
           }
         ]
       }

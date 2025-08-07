@@ -3,6 +3,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { gsap } from 'gsap';
 import Sidebar from '../components/Sidebar';
 import ZapStepConfig from '../components/ZapStepConfig';
+import TestModelDropdown from '../components/TestModelDropdown';
 import { useZaps } from '../hooks/useZaps';
 import { useIntegrations } from '../hooks/useIntegrations';
 import { getServiceConfig } from '../lib/zaps';
@@ -21,7 +22,8 @@ import {
   Bell,
   FileText,
   Users,
-  Settings
+  Settings,
+  Brain
 } from 'lucide-react';
 
 interface Step {
@@ -53,9 +55,10 @@ const ZapBuilder: React.FC = () => {
 
   const apps = [
     { name: 'Gmail', icon: Mail, color: 'bg-red-500' },
+    { name: 'AI Processing', icon: Brain, color: 'bg-purple-600' },
+    { name: 'Notion', icon: Database, color: 'bg-green-500' },
     { name: 'Slack', icon: MessageSquare, color: 'bg-purple-500' },
     { name: 'Google Calendar', icon: Calendar, color: 'bg-blue-500' },
-    { name: 'Notion', icon: Database, color: 'bg-green-500' },
     { name: 'Notifications', icon: Bell, color: 'bg-yellow-500' },
     { name: 'Google Docs', icon: FileText, color: 'bg-blue-600' },
     { name: 'Teams', icon: Users, color: 'bg-indigo-500' },
@@ -90,10 +93,18 @@ const ZapBuilder: React.FC = () => {
   }, []);
 
   const configureStep = (stepId: string, app: string, icon: React.ElementType) => {
-    const serviceName = app.toLowerCase().replace(/\s+/g, '');
+    let serviceName = app.toLowerCase().replace(/\s+/g, '');
     
-    // Check if user has connected this service
-    if (!isConnected(serviceName)) {
+    // Map AI Processing to openrouter service name
+    if (serviceName === 'aiprocessing') {
+      serviceName = 'openrouter';
+    }
+    
+    // AI Processing (openrouter) is a built-in service and doesn't require connection
+    const builtInServices = ['openrouter'];
+    
+    // Check if user has connected this service (skip for built-in services)
+    if (!builtInServices.includes(serviceName) && !isConnected(serviceName)) {
       setError(`Please connect ${app} first in the Integrations page`);
       return;
     }
@@ -140,7 +151,13 @@ const ZapBuilder: React.FC = () => {
   const isStepConfigured = (step: Step, config?: Record<string, any>) => {
     if (!step.app || !step.event) return false;
     
-    const serviceName = step.app.toLowerCase().replace(/\s+/g, '');
+    let serviceName = step.app.toLowerCase().replace(/\s+/g, '');
+    
+    // Map AI Processing to openrouter service name
+    if (serviceName === 'aiprocessing') {
+      serviceName = 'openrouter';
+    }
+    
     const serviceConfig = getServiceConfig(serviceName);
     if (!serviceConfig) return false;
 
@@ -177,12 +194,21 @@ const ZapBuilder: React.FC = () => {
       const zapConfig = {
         name: zapName,
         description: zapDescription,
-        steps: steps.map(step => ({
-          step_type: step.type,
-          service_name: step.app!.toLowerCase().replace(/\s+/g, ''),
-          event_type: step.event!,
-          configuration: step.configuration
-        }))
+        steps: steps.map(step => {
+          let serviceName = step.app!.toLowerCase().replace(/\s+/g, '');
+          
+          // Map AI Processing to openrouter service name
+          if (serviceName === 'aiprocessing') {
+            serviceName = 'openrouter';
+          }
+          
+          return {
+            step_type: step.type,
+            service_name: serviceName,
+            event_type: step.event!,
+            configuration: step.configuration
+          };
+        })
       };
 
       const { data, error } = await createZap(zapConfig);
@@ -247,7 +273,11 @@ const ZapBuilder: React.FC = () => {
               {apps.map((app, index) => {
                 const Icon = app.icon;
                 const serviceName = app.name.toLowerCase().replace(/\s+/g, '');
-                const connected = isConnected(serviceName);
+                const builtInServices = ['aiprocessing'];
+                
+                // Map AI Processing to openrouter for built-in service check
+                const normalizedServiceName = serviceName === 'aiprocessing' ? 'openrouter' : serviceName;
+                const connected = builtInServices.includes(serviceName) || isConnected(normalizedServiceName);
                 
                 return (
                   <div
@@ -272,6 +302,9 @@ const ZapBuilder: React.FC = () => {
                     </p>
                     {!connected && (
                       <p className="text-xs text-red-400 mt-1">Not connected</p>
+                    )}
+                    {builtInServices.includes(serviceName) && (
+                      <p className="text-xs text-green-400 mt-1">Built-in</p>
                     )}
                   </div>
                 );
@@ -385,7 +418,13 @@ const ZapBuilder: React.FC = () => {
                         <div className="mt-4">
                           <ZapStepConfig
                             stepType={step.type}
-                            serviceName={step.app.toLowerCase().replace(/\s+/g, '')}
+                            serviceName={(() => {
+                              let serviceName = step.app!.toLowerCase().replace(/\s+/g, '');
+                              if (serviceName === 'aiprocessing') {
+                                serviceName = 'openrouter';
+                              }
+                              return serviceName;
+                            })()}
                             eventType={step.event || ''}
                             configuration={step.configuration}
                             onConfigChange={(config) => updateStepConfig(step.id, config)}

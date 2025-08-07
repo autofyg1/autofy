@@ -1,0 +1,36 @@
+{
+  "name": "AI Email Summarization",
+  "description": "Automatically summarize important emails and save to Notion",
+  "steps": [
+    {
+      "step_type": "trigger",
+      "service_name": "gmail", 
+      "event_type": "new_email",
+      "configuration": {
+        "keywords": "meeting, project, deadline, urgent, important",
+        "from_email": ""
+      }
+    },
+    {
+      "step_type": "action",
+      "service_name": "openrouter",
+      "event_type": "process_with_ai", 
+      "configuration": {
+        "model": "llama-4-maverick:free",
+        "prompt": "You are an expert email assistant. Analyze the following email and provide a comprehensive response with these sections:\n\n1. **SUMMARY**: Write a clear 2-3 sentence summary of the email's main purpose\n2. **ACTION ITEMS**: List any specific tasks or actions required (use bullet points)\n3. **DEADLINES**: Mention any important dates, deadlines, or time-sensitive items\n4. **PRIORITY**: Assess urgency as High/Medium/Low with brief reasoning\n5. **KEY PEOPLE**: List important contacts mentioned\n\nPlease be thorough and actionable in your analysis.",
+        "max_tokens": 500,
+        "temperature": 0.3
+      }
+    },
+    {
+      "step_type": "action",
+      "service_name": "notion",
+      "event_type": "create_page",
+      "configuration": {
+        "database_id": "your-notion-database-id-here",
+        "title_template": "📧 {{subject}} - AI Summary",
+        "content_template": "## Email Summary\n\n**From:** {{sender}}  \n**Received:** {{timestamp}}  \n**Subject:** {{subject}}\n\n### AI Analysis\n{{ai_content}}\n\n---\n\n### Original Email\n{{body}}\n\n---\n*Processed by {{ai_model}} on {{ai_processed_at}}*"
+      }
+    }
+  ]
+}

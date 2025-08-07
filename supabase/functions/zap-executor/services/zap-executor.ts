@@ -1,5 +1,6 @@
 import { GmailService, EmailMessage } from './gmail.ts';
 import { NotionService, NotionPageConfig } from './notion.ts';
+import { OpenRouterService, AIProcessedEmail, OpenRouterConfig } from './openrouter.ts';
 import { EmailParser } from './email-parser.ts';
 import { Logger } from '../utils/logger.ts';
 import { Zap, ZapStep } from '../lib/supabase.ts';
@@ -15,13 +16,17 @@ export interface ZapExecutionResult {
 }
 
 export class ZapExecutor {
+  private openRouterService: OpenRouterService;
+
   constructor(
     private supabase: SupabaseClient,
     private gmailService: GmailService,
     private notionService: NotionService,
     private emailParser: EmailParser,
     private logger: Logger
-  ) {}
+  ) {
+    this.openRouterService = new OpenRouterService(logger);
+  }
 
   async executeActiveZaps(userId?: string): Promise<ZapExecutionResult[]> {
     this.logger.info('Fetching active zaps', { userId });
@@ -69,6 +74,21 @@ export class ZapExecutor {
   async executeSingleZap(zapId: string): Promise<ZapExecutionResult> {
     const startTime = Date.now();
     this.logger.info(`Executing zap: ${zapId}`);
+    
+    // Check if this zap is already running to prevent concurrent executions
+    const lockId = `zap_execution_${zapId}`;
+    const executionLock = await this.acquireExecutionLock(lockId);
+    if (!executionLock) {
+      this.logger.info(`Zap ${zapId} is already executing, skipping`);
+      return {
+        zapId,
+        success: true,
+        error: 'Zap is already executing - skipped to prevent duplicate processing',
+        emailsProcessed: 0,
+        notionPagesCreated: 0,
+        executionTime: Date.now() - startTime
+      };
+    }
 
     try {
       // Fetch zap with steps, ordered by step_order
@@ -135,18 +155,46 @@ export class ZapExecutor {
       // Execute action steps for each email
       const actionSteps = sortedSteps.filter((step: ZapStep) => step.step_type === 'action');
       let notionPagesCreated = 0;
+      let processedEmails = 0;
 
       for (const email of emails) {
-        for (const actionStep of actionSteps) {
-          try {
-            await this.executeActionStep(actionStep, zap.user_id, email);
+        try {
+          // Check if this email has already been processed by this zap
+          const alreadyProcessed = await this.isEmailAlreadyProcessed(email.id, zapId);
+          if (alreadyProcessed) {
+            this.logger.info(`Email ${email.id} already processed by zap ${zapId}, skipping`);
+            continue;
+          }
+
+          // Process email through the action pipeline
+          let currentEmail: EmailMessage | AIProcessedEmail = email;
+          
+          this.logger.info(`=== EMAIL PIPELINE START ===`);
+          this.logger.info(`Initial email object keys:`, Object.keys(currentEmail));
+          
+          for (const actionStep of actionSteps) {
+            this.logger.info(`Processing step: ${actionStep.service_name}.${actionStep.event_type}`);
+            this.logger.info(`Input email has aiProcessedContent:`, 'aiProcessedContent' in currentEmail);
+            
+            currentEmail = await this.executeActionStep(actionStep, zap.user_id, currentEmail);
+            
+            this.logger.info(`After step ${actionStep.service_name}: email has aiProcessedContent:`, 'aiProcessedContent' in currentEmail);
+            this.logger.info(`Current email object keys:`, Object.keys(currentEmail));
+            
             if (actionStep.service_name === 'notion') {
               notionPagesCreated++;
             }
-          } catch (error) {
-            this.logger.error(`Error executing action step for email ${email.id}:`, error);
-            // Continue processing other emails even if one fails
           }
+          
+          this.logger.info(`=== EMAIL PIPELINE END ===`);
+
+          // Mark email as processed
+          await this.markEmailAsProcessed(email.id, zapId, zap.user_id, email.subject, email.sender);
+          processedEmails++;
+          
+        } catch (error) {
+          this.logger.error(`Error executing action steps for email ${email.id}:`, error);
+          // Continue processing other emails even if one fails
         }
       }
 
@@ -173,6 +221,9 @@ export class ZapExecutor {
         error: error.message,
         executionTime
       };
+    } finally {
+      // Always release the execution lock
+      await this.releaseExecutionLock(lockId);
     }
   }
 
@@ -192,7 +243,7 @@ export class ZapExecutor {
     throw new Error(`Unsupported trigger: ${service_name}.${event_type}`);
   }
 
-  private async executeActionStep(step: ZapStep, userId: string, email: EmailMessage): Promise<void> {
+  private async executeActionStep(step: ZapStep, userId: string, email: EmailMessage | AIProcessedEmail): Promise<EmailMessage | AIProcessedEmail> {
     const { service_name, event_type, configuration } = step;
     
     this.logger.info(`Executing action step:`, {
@@ -202,6 +253,26 @@ export class ZapExecutor {
       configType: typeof configuration
     });
     
+    // Handle AI processing step
+    if (service_name === 'openrouter' && event_type === 'process_with_ai') {
+      const config: OpenRouterConfig = {
+        model: configuration.model,
+        prompt: configuration.prompt,
+        maxTokens: configuration.max_tokens,
+        temperature: configuration.temperature
+      };
+      
+      this.logger.info(`OpenRouter config:`, config);
+      
+      if (!config.model || !config.prompt) {
+        throw new Error(`Model and prompt are required for AI processing: ${JSON.stringify(configuration)}`);
+      }
+      
+      const processedEmail = await this.openRouterService.processEmailWithAI(email as EmailMessage, config);
+      return processedEmail;
+    }
+    
+    // Handle Notion page creation
     if (service_name === 'notion' && event_type === 'create_page') {
       const config: NotionPageConfig = {
         databaseId: configuration.database_id,
@@ -217,7 +288,7 @@ export class ZapExecutor {
       }
       
       await this.notionService.createPageFromEmail(userId, email, config);
-      return;
+      return email; // Return the email unchanged for potential next steps
     }
     
     throw new Error(`Unsupported action: ${service_name}.${event_type}`);
@@ -237,6 +308,80 @@ export class ZapExecutor {
     } catch (error) {
       this.logger.error('Error updating zap stats:', error);
     }
+  }
+
+  private async isEmailAlreadyProcessed(emailId: string, zapId: string): Promise<boolean> {
+    try {
+      const { data, error } = await this.supabase
+        .from('processed_emails')
+        .select('id, processed_at')
+        .eq('email_id', emailId)
+        .eq('zap_id', zapId)
+        .single();
+
+      if (error && error.code !== 'PGRST116') { // PGRST116 is "not found" error
+        this.logger.error('Error checking if email is processed:', error);
+        return false; // On error, process the email to be safe
+      }
+
+      if (data) {
+        this.logger.info(`Email ${emailId} already processed on ${data.processed_at}`);
+        return true;
+      }
+      
+      return false;
+    } catch (error) {
+      this.logger.error('Error checking if email is processed:', error);
+      return false; // On error, process the email to be safe
+    }
+  }
+
+  private async markEmailAsProcessed(
+    emailId: string, 
+    zapId: string, 
+    userId: string, 
+    emailSubject: string, 
+    emailSender: string
+  ): Promise<void> {
+    try {
+      const { error } = await this.supabase
+        .from('processed_emails')
+        .insert({
+          email_id: emailId,
+          zap_id: zapId,
+          user_id: userId,
+          email_subject: emailSubject,
+          email_sender: emailSender
+        });
+
+      if (error) {
+        this.logger.error('Error marking email as processed:', error);
+        // Don't throw error here, as we still want the zap to succeed
+      } else {
+        this.logger.info(`Marked email ${emailId} as processed for zap ${zapId}`);
+      }
+    } catch (error) {
+      this.logger.error('Error marking email as processed:', error);
+      // Don't throw error here, as we still want the zap to succeed
+    }
+  }
+
+  // Simple in-memory execution lock using a Set to track running zaps
+  private static runningZaps: Set<string> = new Set();
+
+  private async acquireExecutionLock(lockId: string): Promise<boolean> {
+    if (ZapExecutor.runningZaps.has(lockId)) {
+      return false; // Lock already acquired
+    }
+    
+    ZapExecutor.runningZaps.add(lockId);
+    this.logger.info(`Acquired execution lock: ${lockId}`);
+    return true;
+  }
+
+  private async releaseExecutionLock(lockId: string): Promise<void> {
+    ZapExecutor.runningZaps.delete(lockId);
+    this.logger.info(`Released execution lock: ${lockId}`);
   }
 }
 

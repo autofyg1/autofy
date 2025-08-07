@@ -27,12 +27,12 @@ const ZapStepConfig: React.FC<ZapStepConfigProps> = ({
   const availableEvents = stepType === 'trigger' ? serviceConfig.triggers : serviceConfig.actions;
   const selectedEvent = availableEvents.find(event => event.id === eventType);
 
-  const handleFieldChange = (fieldKey: string, value: string) => {
-    onConfigChange({
-      ...configuration,
-      [fieldKey]: value
-    });
-  };
+  const handleFieldChange = (fieldKey: string, value: any) => {
+  onConfigChange({
+    ...configuration,
+    [fieldKey]: value
+  });
+};
 
   return (
     <div className="bg-gray-700 rounded-lg border border-gray-600 overflow-hidden">
@@ -88,23 +88,48 @@ const ZapStepConfig: React.FC<ZapStepConfigProps> = ({
                 {field.required && <span className="text-red-400 ml-1">*</span>}
               </label>
               
-              {field.type === 'textarea' ? (
-                <textarea
-                  value={configuration[field.key] || ''}
-                  onChange={(e) => handleFieldChange(field.key, e.target.value)}
-                  placeholder={field.placeholder}
-                  rows={3}
-                  className="w-full px-3 py-2 bg-gray-600 border border-gray-500 rounded-lg text-white placeholder-gray-400 focus:border-blue-500 focus:outline-none resize-none"
-                />
-              ) : (
-                <input
-                  type={field.type}
-                  value={configuration[field.key] || ''}
-                  onChange={(e) => handleFieldChange(field.key, e.target.value)}
-                  placeholder={field.placeholder}
-                  className="w-full px-3 py-2 bg-gray-600 border border-gray-500 rounded-lg text-white placeholder-gray-400 focus:border-blue-500 focus:outline-none"
-                />
-              )}
+              {field.type === 'select' && field.options ? (
+  <select
+    value={configuration[field.key] || ''}
+    onChange={(e) => handleFieldChange(field.key, e.target.value)}
+    className="w-full px-3 py-2 bg-gray-600 border border-gray-500 rounded-lg text-white focus:border-blue-500 focus:outline-none"
+  >
+    <option value="">{field.placeholder}</option>
+    {field.options.map((option) => (
+      <option key={option.value} value={option.value}>
+        {option.label}
+      </option>
+    ))}
+  </select>
+) : field.type === 'textarea' ? (
+  <textarea
+    value={configuration[field.key] || ''}
+    onChange={(e) => handleFieldChange(field.key, e.target.value)}
+    placeholder={field.placeholder}
+    rows={3}
+    className="w-full px-3 py-2 bg-gray-600 border border-gray-500 rounded-lg text-white placeholder-gray-400 focus:border-blue-500 focus:outline-none resize-none"
+  />
+) : field.type === 'number' ? (
+  <input
+    type="number"
+    value={configuration[field.key] || ''}
+    onChange={(e) => handleFieldChange(field.key, e.target.value ? parseFloat(e.target.value) : '')}
+    placeholder={field.placeholder}
+    step={field.key === 'temperature' ? '0.1' : '1'}
+    min={field.key === 'temperature' ? '0' : field.key === 'max_tokens' ? '1' : undefined}
+    max={field.key === 'temperature' ? '2' : undefined}
+    className="w-full px-3 py-2 bg-gray-600 border border-gray-500 rounded-lg text-white placeholder-gray-400 focus:border-blue-500 focus:outline-none"
+  />
+) : (
+  <input
+    type={field.type}
+    value={configuration[field.key] || ''}
+    onChange={(e) => handleFieldChange(field.key, e.target.value)}
+    placeholder={field.placeholder}
+    className="w-full px-3 py-2 bg-gray-600 border border-gray-500 rounded-lg text-white placeholder-gray-400 focus:border-blue-500 focus:outline-none"
+  />
+)}
+              
               
               {field.description && (
                 <p className="text-xs text-gray-400 mt-1">{field.description}</p>
