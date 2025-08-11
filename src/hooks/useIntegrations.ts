@@ -2,12 +2,14 @@ import { useState, useEffect } from 'react';
 import { supabase, Integration } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
 import { generateAuthUrl } from '../lib/oauth';
+import { useTelegram } from './useTelegram';
 
 export const useIntegrations = () => {
   const [integrations, setIntegrations] = useState<Integration[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const { user } = useAuth();
+  const telegram = useTelegram();
 
   const fetchIntegrations = async () => {
     if (!user) return;
@@ -86,10 +88,24 @@ export const useIntegrations = () => {
   };
 
   const isConnected = (serviceName: string) => {
+    if (serviceName.toLowerCase() === 'telegram') {
+      return telegram.isConnected();
+    }
     return integrations.some(i => i.service_name === serviceName.toLowerCase());
   };
 
   const getIntegration = (serviceName: string) => {
+    if (serviceName.toLowerCase() === 'telegram') {
+      // Return a mock integration object for Telegram since it uses a different data structure
+      return telegram.isConnected() ? {
+        id: 'telegram',
+        user_id: user?.id || '',
+        service_name: 'telegram',
+        credentials: { chat_count: telegram.getActiveChatCount() },
+        connected_at: telegram.chats[0]?.linked_at || new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      } : undefined;
+    }
     return integrations.find(i => i.service_name === serviceName.toLowerCase());
   };
 

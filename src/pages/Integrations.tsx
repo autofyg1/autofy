@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { gsap } from 'gsap';
 import Sidebar from '../components/Sidebar';
+import TelegramConnectionModal from '../components/TelegramConnectionModal';
 import { useIntegrations } from '../hooks/useIntegrations';
 import { 
   Search, 
@@ -25,7 +26,8 @@ import {
   Cloud,
   CheckCircle,
   AlertCircle,
-  TestTube
+  TestTube,
+  Send
 } from 'lucide-react';
 
 interface IntegrationApp {
@@ -48,6 +50,7 @@ const Integrations: React.FC = () => {
   const [connectingService, setConnectingService] = useState<string | null>(null);
   const [testingDatabase, setTestingDatabase] = useState<string | null>(null);
   const [testResult, setTestResult] = useState<{ success: boolean; message: string } | null>(null);
+  const [telegramModalOpen, setTelegramModalOpen] = useState(false);
 
   const availableApps: IntegrationApp[] = [
     {
@@ -169,6 +172,16 @@ const Integrations: React.FC = () => {
       category: 'Communication',
       popularity: 70,
       totalAutomations: 38
+    },
+    {
+      id: '13',
+      name: 'Telegram',
+      description: 'Send messages, receive notifications, automate chat responses',
+      icon: Send,
+      color: 'bg-blue-600',
+      category: 'Communication',
+      popularity: 82,
+      totalAutomations: 95
     }
   ];
 
@@ -203,11 +216,18 @@ const Integrations: React.FC = () => {
     });
 
   const handleConnectIntegration = async (app: IntegrationApp) => {
-    // Check if this service supports OAuth
-    const oauthServices = ['gmail', 'notion'];
     const serviceName = app.name.toLowerCase();
     
     console.log('Connecting integration:', serviceName);
+    
+    // Handle Telegram specially
+    if (serviceName === 'telegram') {
+      setTelegramModalOpen(true);
+      return;
+    }
+    
+    // Check if this service supports OAuth
+    const oauthServices = ['gmail', 'notion'];
     
     if (oauthServices.includes(serviceName)) {
       // Initiate OAuth flow
@@ -240,6 +260,14 @@ const Integrations: React.FC = () => {
   };
 
   const handleDisconnectIntegration = async (app: IntegrationApp) => {
+    const serviceName = app.name.toLowerCase();
+    
+    // Handle Telegram specially
+    if (serviceName === 'telegram') {
+      setTelegramModalOpen(true);
+      return;
+    }
+    
     const { error } = await disconnectIntegration(app.name);
     
     if (error) {
@@ -512,6 +540,12 @@ const Integrations: React.FC = () => {
             )}
           </div>
         )}
+        
+        {/* Telegram Connection Modal */}
+        <TelegramConnectionModal 
+          isOpen={telegramModalOpen} 
+          onClose={() => setTelegramModalOpen(false)} 
+        />
       </div>
     </div>
   );
