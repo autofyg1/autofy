@@ -1,0 +1,47 @@
+{
+  "name": "🌟 VIP Email Alert System",
+  "description": "Smart VIP email filtering with AI categorization and priority Telegram alerts",
+  "steps": [
+    {
+      "step_type": "trigger",
+      "service_name": "gmail",
+      "event_type": "new_email",
+      "configuration": {
+        "keywords": "urgent, priority, vip, important, ceo, director, manager, board, executive, client, emergency, asap",
+        "from_email": "",
+        "max_results": 20
+      }
+    },
+    {
+      "step_type": "action",
+      "service_name": "openrouter", 
+      "event_type": "process_with_ai",
+      "configuration": {
+        "model": "llama-4-scout:free",
+        "prompt": "🎯 **VIP EMAIL TRIAGE SYSTEM**\n\nAnalyze this email for VIP status and priority level:\n\n🔥 **URGENCY LEVEL**: CRITICAL/HIGH/MEDIUM/LOW/SKIP\n👤 **SENDER TYPE**: Executive/Client/Partner/Team/Vendor/Spam\n💼 **CATEGORY**: Meeting/Deadline/Decision/Information/Request/Problem\n⏰ **RESPONSE TIME**: Immediate/1-Hour/Same-Day/Next-Day/No-Response\n🚨 **ALERT PRIORITY**: 🔴 Red Alert/🟡 Yellow Alert/🟢 Green Alert/⚪ No Alert\n\n📋 **VIP SUMMARY** (2-3 lines max):\n[Write concise summary here]\n\n✅ **RECOMMENDED ACTION**:\n[What should be done next]\n\n**IMPORTANT**: If this is spam, promotional, or low-priority content, respond with exactly: 'SKIP: Not VIP priority'",
+        "max_tokens": 350,
+        "temperature": 0.1
+      }
+    },
+    {
+      "step_type": "action",
+      "service_name": "telegram",
+      "event_type": "send_message", 
+      "configuration": {
+        "message_template": "🌟 <b>VIP EMAIL ALERT</b>\n\n📧 <b>From:</b> {{sender}}\n📌 <b>Subject:</b> {{subject}}\n🕒 <b>Received:</b> {{timestamp}}\n\n🤖 <b>AI Triage:</b>\n{{ai_content}}\n\n<i>⚡ VIP Automation System | FlowBot</i>",
+        "parse_mode": "HTML",
+        "disable_web_page_preview": true,
+        "disable_notification": false
+      }
+    }
+  ],
+  "metadata": {
+    "telegram_enabled": true,
+    "requires_telegram_connection": true,
+    "ai_processing": true,
+    "priority_level": "high",
+    "category": "vip_automation",
+    "debug_mode": true,
+    "description_extended": "This automation is designed for executives and busy professionals who need immediate awareness of high-priority emails. It uses AI to filter and categorize emails, sending only truly important messages to Telegram with smart priority indicators."
+  }
+}

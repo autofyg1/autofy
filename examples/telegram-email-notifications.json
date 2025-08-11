@@ -1,0 +1,44 @@
+{
+  "name": "📧 Email to Telegram with AI Summary",
+  "description": "Receive new emails, process with AI, and send summary to Telegram chat",
+  "steps": [
+    {
+      "step_type": "trigger",
+      "service_name": "gmail",
+      "event_type": "new_email",
+      "configuration": {
+        "keywords": "important, urgent, meeting, project, proposal, deadline, review",
+        "from_email": "",
+        "max_results": 10
+      }
+    },
+    {
+      "step_type": "action",
+      "service_name": "openrouter",
+      "event_type": "process_with_ai",
+      "configuration": {
+        "model": "llama-4-scout:free",
+        "prompt": "📧 **EMAIL ANALYSIS**\n\nAnalyze this email and provide a clear, structured summary for Telegram:\n\n🎯 **QUICK SUMMARY** (1-2 sentences)\n📋 **ACTION ITEMS** (if any, use bullet points)\n⏰ **DEADLINES** (if mentioned)\n🚨 **PRIORITY LEVEL**: High/Medium/Low\n👥 **KEY PEOPLE** (important contacts mentioned)\n\nKeep it concise but comprehensive. Use emojis for better readability in Telegram.\n\nIf this is spam or promotional content, respond with: 'SKIP: Promotional/Spam email'",
+        "max_tokens": 400,
+        "temperature": 0.2
+      }
+    },
+    {
+      "step_type": "action",
+      "service_name": "telegram",
+      "event_type": "send_message",
+      "configuration": {
+        "message_template": "📧 <b>New Email Alert</b>\n\n<b>From:</b> {{sender}}\n<b>Subject:</b> {{subject}}\n<b>Received:</b> {{timestamp}}\n\n{{ai_content}}\n\n<i>📱 Processed by FlowBot AI</i>",
+        "parse_mode": "HTML",
+        "disable_web_page_preview": true,
+        "disable_notification": false
+      }
+    }
+  ],
+  "metadata": {
+    "telegram_enabled": true,
+    "requires_telegram_connection": true,
+    "ai_processing": true,
+    "debug_mode": true
+  }
+}

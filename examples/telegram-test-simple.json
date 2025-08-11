@@ -1,0 +1,36 @@
+{
+  "name": "🧪 Test Telegram Integration",
+  "description": "Simple test automation to verify Telegram integration is working properly",
+  "steps": [
+    {
+      "step_type": "trigger",
+      "service_name": "gmail",
+      "event_type": "new_email",
+      "configuration": {
+        "keywords": "test, flowbot, telegram, automation",
+        "from_email": ""
+      }
+    },
+    {
+      "step_type": "action",
+      "service_name": "telegram",
+      "event_type": "send_message",
+      "configuration": {
+        "message_template": "✅ <b>FlowBot Test Message</b>\n\n📧 <b>Email Received:</b>\n• <b>From:</b> {{sender}}\n• <b>Subject:</b> {{subject}}\n• <b>Time:</b> {{timestamp}}\n\n🎯 <b>Test Status:</b> SUCCESS\n📱 Your Telegram integration is working perfectly!\n\n<i>🤖 FlowBot Test Automation</i>",
+        "parse_mode": "HTML",
+        "disable_web_page_preview": "true",
+        "disable_notification": "false"
+      }
+    }
+  ],
+  "metadata": {
+    "telegram_enabled": true,
+    "requires_telegram_connection": true,
+    "ai_processing": false,
+    "priority_level": "low",
+    "category": "testing",
+    "debug_mode": true,
+    "testing_purposes": true,
+    "description_extended": "This is a simple test automation to verify that your Telegram integration is working correctly. Send an email with 'test' in the subject to trigger it."
+  }
+}

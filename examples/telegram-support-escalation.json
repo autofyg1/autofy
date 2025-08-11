@@ -1,0 +1,60 @@
+{
+  "name": "🎧 Customer Support Escalation System",
+  "description": "Automatically escalate urgent customer support emails to Telegram with sentiment analysis",
+  "steps": [
+    {
+      "step_type": "trigger",
+      "service_name": "gmail",
+      "event_type": "new_email", 
+      "configuration": {
+        "keywords": "support, help, issue, problem, bug, error, complaint, refund, cancel, urgent, angry, disappointed, frustrated",
+        "from_email": "",
+        "max_results": 15
+      }
+    },
+    {
+      "step_type": "action",
+      "service_name": "openrouter",
+      "event_type": "process_with_ai",
+      "configuration": {
+        "model": "llama-4-maverick:free",
+        "prompt": "🎧 **CUSTOMER SUPPORT ANALYSIS**\n\nAnalyze this customer email for support escalation:\n\n😡 **SENTIMENT**: Angry/Frustrated/Neutral/Happy/Grateful\n🚨 **ESCALATION LEVEL**: URGENT/HIGH/MEDIUM/LOW/INFO-ONLY\n📊 **ISSUE TYPE**: Technical/Billing/Account/Feature/Complaint/Compliment\n⏱️ **SLA PRIORITY**: Same-Hour/Same-Day/3-Days/1-Week/No-Deadline\n💰 **CUSTOMER VALUE**: High-Value/Regular/New/Trial/Unknown\n\n📝 **ISSUE SUMMARY**:\n[Write 2-3 sentence summary of the problem]\n\n🔧 **SUGGESTED RESOLUTION**:\n[What actions should support team take]\n\n📞 **ESCALATION REASON**:\n[Why this needs immediate attention, if applicable]\n\nIf this is not a support issue or is spam, respond: 'SKIP: Not a support issue'",
+        "max_tokens": 450,
+        "temperature": 0.2
+      }
+    },
+    {
+      "step_type": "action",
+      "service_name": "telegram",
+      "event_type": "send_message",
+      "configuration": {
+        "message_template": "🎧 <b>SUPPORT ESCALATION</b>\n\n👤 <b>Customer:</b> {{sender}}\n📧 <b>Subject:</b> {{subject}}\n🕐 <b>Received:</b> {{timestamp}}\n\n🤖 <b>AI Analysis:</b>\n{{ai_content}}\n\n🔗 <b>Actions:</b>\n• Check customer history\n• Assign to available agent\n• Set priority in system\n\n<i>🎯 Support Automation | FlowBot</i>",
+        "parse_mode": "HTML",
+        "disable_web_page_preview": true,
+        "disable_notification": false
+      }
+    },
+    {
+      "step_type": "action",
+      "service_name": "notion",
+      "event_type": "create_page",
+      "configuration": {
+        "database_id": "your-support-tickets-database-id",
+        "title_template": "🎧 Support: {{subject}} - {{sender}}",
+        "content_template": "## Support Ticket\n\n**📧 Customer Details**\n- **Email:** {{sender}}\n- **Subject:** {{subject}}\n- **Received:** {{timestamp}}\n- **Ticket ID:** {{id}}\n\n**🤖 AI Analysis**\n{{ai_content}}\n\n**📄 Original Message**\n{{body}}\n\n---\n**📱 Telegram Alert:** Sent to support team\n**⚡ Status:** New - Awaiting Assignment\n**🔄 Created:** {{ai_processed_at}} by Support Automation"
+      }
+    }
+  ],
+  "metadata": {
+    "telegram_enabled": true,
+    "notion_enabled": true,
+    "requires_telegram_connection": true,
+    "requires_notion_connection": true,
+    "ai_processing": true,
+    "priority_level": "high",
+    "category": "customer_support",
+    "debug_mode": true,
+    "team_type": "support_team",
+    "description_extended": "Perfect for customer support teams who need instant alerts about escalated issues. Creates support tickets in Notion while simultaneously alerting the team via Telegram with AI-powered sentiment and priority analysis."
+  }
+}

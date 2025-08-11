@@ -292,6 +292,72 @@ export const serviceConfigs = {
         ]
       }
     ]
+  },
+  telegram: {
+    name: 'Telegram',
+    triggers: [],
+    actions: [
+      {
+        id: 'send_message',
+        name: 'Send Message',
+        description: 'Send a message to your connected Telegram chat',
+        fields: [
+          {
+            key: 'message_template',
+            label: 'Message Template',
+            type: 'textarea',
+            placeholder: '📧 New Email Alert\n\n📤 From: {{sender}}\n📝 Subject: {{subject}}\n🕒 Time: {{timestamp}}\n\n{{ai_content}}',
+            required: true,
+            description: 'Message template with dynamic variables. Use HTML formatting: <b>bold</b>, <i>italic</i>, <code>code</code>. Available: {{sender}}, {{subject}}, {{timestamp}}, {{body}}, {{ai_content}}'
+          },
+          {
+            key: 'parse_mode',
+            label: 'Message Format',
+            type: 'select',
+            placeholder: 'Select message format',
+            required: false,
+            description: 'How to format the message text',
+            options: [
+              { value: 'HTML', label: 'HTML (Recommended)' },
+              { value: 'Markdown', label: 'Markdown' },
+              { value: 'MarkdownV2', label: 'Markdown V2' }
+            ]
+          },
+          {
+            key: 'disable_web_page_preview',
+            label: 'Disable Link Previews',
+            type: 'select',
+            placeholder: 'Disable web page previews',
+            required: false,
+            description: 'Whether to show previews for links in the message',
+            options: [
+              { value: 'true', label: 'Yes (Recommended)' },
+              { value: 'false', label: 'No' }
+            ]
+          },
+          {
+            key: 'disable_notification',
+            label: 'Silent Notification',
+            type: 'select',
+            placeholder: 'Send silently',
+            required: false,
+            description: 'Send the message silently without notification sound',
+            options: [
+              { value: 'false', label: 'Normal notification' },
+              { value: 'true', label: 'Silent (no sound)' }
+            ]
+          },
+          {
+            key: 'chat_id',
+            label: 'Specific Chat ID (Optional)',
+            type: 'text',
+            placeholder: 'Leave empty to send to all connected chats',
+            required: false,
+            description: 'Send to a specific chat ID. Leave empty to send to all your connected Telegram chats'
+          }
+        ]
+      }
+    ]
   }
 };
 

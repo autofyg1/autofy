@@ -1,0 +1,57 @@
+{
+  "name": "📧➡️📱➡️📝 Email to Telegram + Notion",
+  "description": "Process emails with AI, send to Telegram, and backup to Notion database",
+  "steps": [
+    {
+      "step_type": "trigger",
+      "service_name": "gmail", 
+      "event_type": "new_email",
+      "configuration": {
+        "keywords": "contract, legal, invoice, payment, agreement, quote, proposal",
+        "from_email": "",
+        "max_results": 3
+      }
+    },
+    {
+      "step_type": "action",
+      "service_name": "openrouter",
+      "event_type": "process_with_ai", 
+      "configuration": {
+        "model": "llama-4-maverick:free",
+        "prompt": "🔍 **BUSINESS EMAIL ANALYSIS**\n\nAnalyze this email for business importance:\n\n💼 **EMAIL TYPE**: Contract/Invoice/Legal/Proposal/General\n📊 **BUSINESS PRIORITY**: Critical/High/Medium/Low\n💰 **FINANCIAL IMPACT**: Yes/No (mention amounts if present)\n📅 **TIME SENSITIVITY**: Immediate/This Week/This Month/No Rush\n✅ **REQUIRED ACTIONS**: List specific next steps needed\n🏢 **STAKEHOLDERS**: Key people who should be aware\n📋 **SUMMARY**: 2-3 sentence business summary\n\nUse professional tone and be specific about any financial figures, dates, or commitments mentioned.",
+        "max_tokens": 500,
+        "temperature": 0.1
+      }
+    },
+    {
+      "step_type": "action", 
+      "service_name": "telegram",
+      "event_type": "send_message",
+      "configuration": {
+        "message_template": "💼 <b>Business Email Alert</b>\n\n📧 <b>From:</b> {{sender}}\n📌 <b>Subject:</b> {{subject}}\n⏰ <b>Received:</b> {{timestamp}}\n\n🤖 <b>AI Analysis:</b>\n{{ai_content}}\n\n<i>💾 This email has been saved to Notion for record keeping</i>",
+        "parse_mode": "HTML", 
+        "disable_web_page_preview": true,
+        "disable_notification": false
+      }
+    },
+    {
+      "step_type": "action",
+      "service_name": "notion",
+      "event_type": "create_page", 
+      "configuration": {
+        "database_id": "your-business-emails-database-id",
+        "title_template": "📧 {{subject}} - {{sender}}",
+        "content_template": "## Business Email Record\n\n**📬 Email Details**\n- **From:** {{sender}}\n- **Subject:** {{subject}}\n- **Received:** {{timestamp}}\n- **Email ID:** {{id}}\n\n**🤖 AI Business Analysis**\n{{ai_content}}\n\n**📄 Original Email Content**\n{{body}}\n\n---\n**📱 Telegram Notification:** Sent to connected chat(s)\n**🔄 Processing:** Completed by {{ai_model}} on {{ai_processed_at}}\n**⚡ Automation:** Business Email to Telegram + Notion backup"
+      }
+    }
+  ],
+  "metadata": {
+    "telegram_enabled": true,
+    "notion_enabled": true, 
+    "requires_telegram_connection": true,
+    "requires_notion_connection": true,
+    "ai_processing": true,
+    "debug_mode": true,
+    "category": "business_automation"
+  }
+}

@@ -1,6 +1,7 @@
 import { GmailService, EmailMessage } from './gmail.ts';
 import { NotionService, NotionPageConfig } from './notion.ts';
 import { OpenRouterService, AIProcessedEmail, OpenRouterConfig } from './openrouter.ts';
+import { TelegramService, TelegramConfig } from './telegram.ts';
 import { EmailParser } from './email-parser.ts';
 import { Logger } from '../utils/logger.ts';
 import { Zap, ZapStep } from '../lib/supabase.ts';
@@ -12,11 +13,13 @@ export interface ZapExecutionResult {
   error?: string
   emailsProcessed?: number
   notionPagesCreated?: number
+  telegramMessagesSent?: number
   executionTime?: number
 }
 
 export class ZapExecutor {
   private openRouterService: OpenRouterService;
+  private telegramService: TelegramService;
 
   constructor(
     private supabase: SupabaseClient,
@@ -26,6 +29,7 @@ export class ZapExecutor {
     private logger: Logger
   ) {
     this.openRouterService = new OpenRouterService(logger);
+    this.telegramService = new TelegramService(logger);
   }
 
   async executeActiveZaps(userId?: string): Promise<ZapExecutionResult[]> {
@@ -288,6 +292,44 @@ export class ZapExecutor {
       }
       
       await this.notionService.createPageFromEmail(userId, email, config);
+      return email; // Return the email unchanged for potential next steps
+    }
+    
+    // Handle Telegram message sending
+    if (service_name === 'telegram' && event_type === 'send_message') {
+      const config: TelegramConfig = {
+        messageTemplate: configuration.message_template,
+        parseMode: configuration.parse_mode,
+        disableWebPagePreview: configuration.disable_web_page_preview,
+        disableNotification: configuration.disable_notification,
+        chatId: configuration.chat_id
+      };
+      
+      this.logger.info('Telegram config:', config);
+      
+      // Validate Telegram configuration
+      const validation = this.telegramService.validateConfig(configuration);
+      if (!validation.valid) {
+        throw new Error(`Invalid Telegram configuration: ${validation.errors.join(', ')}`);
+      }
+      
+      // Send Telegram message
+      const telegramResult = await this.telegramService.sendMessageFromZap(userId, email, config);
+      
+      this.logger.info('Telegram message result:', {
+        success: telegramResult.success,
+        messagesSent: telegramResult.messagesSent,
+        errorCount: telegramResult.errors.length
+      });
+      
+      // Log errors if any
+      if (telegramResult.errors.length > 0) {
+        this.logger.error('Telegram errors:', telegramResult.errors);
+      }
+      
+      // Don't throw error for Telegram failures to allow other steps to continue
+      // The result is already logged for debugging
+      
       return email; // Return the email unchanged for potential next steps
     }
     

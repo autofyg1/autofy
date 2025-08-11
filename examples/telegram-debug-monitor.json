@@ -1,0 +1,49 @@
+{
+  "name": "🔧 Debug & Monitor System",
+  "description": "Debug automation system with detailed logging and Telegram monitoring alerts",
+  "steps": [
+    {
+      "step_type": "trigger",
+      "service_name": "gmail",
+      "event_type": "new_email",
+      "configuration": {
+        "keywords": "test, debug, monitor, flowbot, automation, zap",
+        "from_email": "",
+        "max_results": 5
+      }
+    },
+    {
+      "step_type": "action", 
+      "service_name": "openrouter",
+      "event_type": "process_with_ai",
+      "configuration": {
+        "model": "llama-4-scout:free",
+        "prompt": "🔧 **DEBUG SYSTEM ANALYSIS**\n\nAnalyze this email for debugging and monitoring:\n\n🔍 **EMAIL TYPE**: Debug-Test/Monitor-Alert/User-Feedback/System-Log/Other\n⚙️ **AUTOMATION STATUS**: Working/Broken/Needs-Attention/Unknown\n📊 **LOG LEVEL**: Critical/Warning/Info/Debug/Trace\n🎯 **ACTION NEEDED**: Immediate/Review/Log-Only/No-Action\n\n📝 **DEBUG SUMMARY**:\n[Provide technical summary of the issue or test result]\n\n🔧 **TECHNICAL DETAILS**:\n[Any error messages, stack traces, or system information]\n\n✅ **NEXT STEPS**:\n[What should developers or admins do next]\n\nIf this is not related to debugging or monitoring, respond: 'SKIP: Not a debug/monitor email'",
+        "max_tokens": 400,
+        "temperature": 0.1
+      }
+    },
+    {
+      "step_type": "action",
+      "service_name": "telegram",
+      "event_type": "send_message",
+      "configuration": {
+        "message_template": "🔧 <b>DEBUG MONITOR</b>\n\n📧 <b>From:</b> {{sender}}\n📌 <b>Subject:</b> {{subject}}\n🕒 <b>Time:</b> {{timestamp}}\n\n🤖 <b>Debug Analysis:</b>\n{{ai_content}}\n\n📊 <b>System Info:</b>\n• Email ID: <code>{{id}}</code>\n• Processing: {{ai_model}}\n• Timestamp: {{ai_processed_at}}\n\n<i>🔧 Debug System | FlowBot</i>",
+        "parse_mode": "HTML",
+        "disable_web_page_preview": true,
+        "disable_notification": true
+      }
+    }
+  ],
+  "metadata": {
+    "telegram_enabled": true,
+    "requires_telegram_connection": true,
+    "ai_processing": true,
+    "priority_level": "medium",
+    "category": "debug_monitoring", 
+    "debug_mode": true,
+    "team_type": "development_team",
+    "testing_purposes": true,
+    "description_extended": "This Zap is specifically designed for developers and system administrators to monitor and debug FlowBot automation systems. It provides detailed technical information and logs to Telegram for real-time monitoring of system health and automation performance."
+  }
+}

@@ -23,7 +23,8 @@ import {
   FileText,
   Users,
   Settings,
-  Brain
+  Brain,
+  Send
 } from 'lucide-react';
 
 interface Step {
@@ -57,6 +58,7 @@ const ZapBuilder: React.FC = () => {
     { name: 'Gmail', icon: Mail, color: 'bg-red-500' },
     { name: 'AI Processing', icon: Brain, color: 'bg-purple-600' },
     { name: 'Notion', icon: Database, color: 'bg-green-500' },
+    { name: 'Telegram', icon: Send, color: 'bg-blue-400' },
     { name: 'Slack', icon: MessageSquare, color: 'bg-purple-500' },
     { name: 'Google Calendar', icon: Calendar, color: 'bg-blue-500' },
     { name: 'Notifications', icon: Bell, color: 'bg-yellow-500' },
