@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { getServiceConfig } from '../lib/zaps';
+import { getServiceConfig, generateTelegramMessageTemplate } from '../lib/zaps';
 import { ChevronDown, ChevronRight, Settings } from 'lucide-react';
 
 interface ZapStepConfigProps {
@@ -9,6 +9,7 @@ interface ZapStepConfigProps {
   configuration: Record<string, any>;
   onConfigChange: (config: Record<string, any>) => void;
   onEventChange: (eventType: string) => void;
+  allSteps?: { step_type: string; service_name: string; event_type: string; configuration: Record<string, any> }[];
 }
 
 const ZapStepConfig: React.FC<ZapStepConfigProps> = ({
@@ -17,7 +18,8 @@ const ZapStepConfig: React.FC<ZapStepConfigProps> = ({
   eventType,
   configuration,
   onConfigChange,
-  onEventChange
+  onEventChange,
+  allSteps = []
 }) => {
   const [isExpanded, setIsExpanded] = useState(true);
   const serviceConfig = getServiceConfig(serviceName);
@@ -27,12 +29,28 @@ const ZapStepConfig: React.FC<ZapStepConfigProps> = ({
   const availableEvents = stepType === 'trigger' ? serviceConfig.triggers : serviceConfig.actions;
   const selectedEvent = availableEvents.find(event => event.id === eventType);
 
+  // Check if AI processing step exists in the workflow
+  const hasAiProcessing = allSteps.some(step => 
+    step.service_name === 'openrouter' && step.event_type === 'process_with_ai'
+  );
+
   const handleFieldChange = (fieldKey: string, value: any) => {
-  onConfigChange({
-    ...configuration,
-    [fieldKey]: value
-  });
-};
+    let newConfig = {
+      ...configuration,
+      [fieldKey]: value
+    };
+
+    // Special handling for Telegram message title - auto-generate template
+    if (serviceName === 'telegram' && eventType === 'send_message' && fieldKey === 'message_title') {
+      const messageTemplate = generateTelegramMessageTemplate(value, hasAiProcessing);
+      newConfig = {
+        ...newConfig,
+        message_template: messageTemplate
+      };
+    }
+
+    onConfigChange(newConfig);
+  };
 
   return (
     <div className="bg-gray-700 rounded-lg border border-gray-600 overflow-hidden">
@@ -133,6 +151,19 @@ const ZapStepConfig: React.FC<ZapStepConfigProps> = ({
               
               {field.description && (
                 <p className="text-xs text-gray-400 mt-1">{field.description}</p>
+              )}
+
+              {/* Show preview for Telegram message template */}
+              {serviceName === 'telegram' && eventType === 'send_message' && field.key === 'message_title' && configuration.message_title && (
+                <div className="mt-3 p-3 bg-gray-600/50 rounded-lg border border-gray-500">
+                  <p className="text-xs font-medium text-gray-300 mb-2">Message Preview:</p>
+                  <div className="text-xs text-gray-400 whitespace-pre-wrap font-mono">
+                    {generateTelegramMessageTemplate(configuration.message_title, hasAiProcessing)}
+                  </div>
+                  <p className="text-xs text-blue-400 mt-2">
+                    {hasAiProcessing ? 'Using AI content ({{ai_content}})' : 'Using email body ({{body}})'}
+                  </p>
+                </div>
               )}
             </div>
           ))}

@@ -28,7 +28,7 @@
       "service_name": "telegram",
       "event_type": "send_message", 
       "configuration": {
-        "message_template": "🌟 <b>VIP EMAIL ALERT</b>\n\n📧 <b>From:</b> {{sender}}\n📌 <b>Subject:</b> {{subject}}\n🕒 <b>Received:</b> {{timestamp}}\n\n🤖 <b>AI Triage:</b>\n{{ai_content}}\n\n<i>⚡ VIP Automation System | FlowBot</i>",
+        "message_title": "VIP EMAIL ALERT",
         "parse_mode": "HTML",
         "disable_web_page_preview": true,
         "disable_notification": false

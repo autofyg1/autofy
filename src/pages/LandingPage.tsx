@@ -1,7 +1,5 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { gsap } from 'gsap';
-import { ScrollTrigger } from 'gsap/ScrollTrigger';
 import { 
   Zap, 
   ArrowRight, 
@@ -13,160 +11,169 @@ import {
   Mail,
   Sparkles,
   Clock,
-  Users
+  Users,
+  Bot,
+  Workflow,
+  Shield,
+  Palette,
+  MousePointer,
+  Code,
+  Database,
+  Globe
 } from 'lucide-react';
-
-gsap.registerPlugin(ScrollTrigger);
 
 const LandingPage: React.FC = () => {
   const heroRef = useRef<HTMLDivElement>(null);
-  const featuresRef = useRef<HTMLDivElement>(null);
-  const testimonialsRef = useRef<HTMLDivElement>(null);
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 });
+  const [isHovering, setIsHovering] = useState(false);
 
+  // Track mouse movement for 3D effects
   useEffect(() => {
-    // Hero animation
-    if (heroRef.current) {
-      const tl = gsap.timeline();
-      tl.fromTo('.hero-title', 
-        { y: 100, opacity: 0 },
-        { y: 0, opacity: 1, duration: 1, ease: "power2.out" }
-      )
-      .fromTo('.hero-subtitle',
-        { y: 50, opacity: 0 },
-        { y: 0, opacity: 1, duration: 0.8, ease: "power2.out" },
-        "-=0.5"
-      )
-      .fromTo('.hero-cta',
-        { y: 30, opacity: 0 },
-        { y: 0, opacity: 1, duration: 0.6, ease: "power2.out" },
-        "-=0.3"
-      );
-    }
+    const handleMouseMove = (e: MouseEvent) => {
+      setMousePosition({ x: e.clientX, y: e.clientY });
+    };
 
-    // Features animation
-    if (featuresRef.current) {
-      gsap.fromTo('.feature-card',
-        { y: 80, opacity: 0, scale: 0.9 },
-        { 
-          y: 0, 
-          opacity: 1, 
-          scale: 1,
-          duration: 0.8,
-          stagger: 0.2,
-          ease: "power2.out",
-          scrollTrigger: {
-            trigger: featuresRef.current,
-            start: "top 80%",
-            end: "bottom 20%",
-          }
-        }
-      );
-    }
-
-    // Testimonials animation
-    if (testimonialsRef.current) {
-      gsap.fromTo('.testimonial-card',
-        { x: 100, opacity: 0 },
-        { 
-          x: 0, 
-          opacity: 1,
-          duration: 0.8,
-          stagger: 0.3,
-          ease: "power2.out",
-          scrollTrigger: {
-            trigger: testimonialsRef.current,
-            start: "top 80%",
-            end: "bottom 20%",
-          }
-        }
-      );
-    }
-
-    // Floating animation for background elements
-    gsap.to('.floating-icon', {
-      y: -20,
-      duration: 2,
-      repeat: -1,
-      yoyo: true,
-      ease: "power2.inOut",
-      stagger: 0.5
-    });
-
+    window.addEventListener('mousemove', handleMouseMove);
+    return () => window.removeEventListener('mousemove', handleMouseMove);
   }, []);
+
+  // 3D transform based on mouse position
+  const get3DTransform = (intensity: number = 1) => {
+    const x = (mousePosition.x / window.innerWidth - 0.5) * intensity * 20;
+    const y = (mousePosition.y / window.innerHeight - 0.5) * intensity * 20;
+    return `perspective(1000px) rotateX(${-y}deg) rotateY(${x}deg)`;
+  };
 
   const features = [
     {
-      icon: Zap,
-      title: "Lightning Fast Setup",
-      description: "Create powerful automations in minutes, not hours. Our intuitive builder makes it easy."
+      icon: Workflow,
+      title: "Visual Workflow Builder",
+      description: "Create complex automations with our intuitive drag-and-drop interface. No coding required.",
+      color: "from-pink-400 to-rose-400"
     },
     {
       icon: Sparkles,
-      title: "Smart Integrations",
-      description: "Connect 1000+ apps with intelligent triggers and actions. Everything works seamlessly."
+      title: "1000+ Integrations",
+      description: "Connect all your favorite tools and services with pre-built connectors and APIs.",
+      color: "from-purple-400 to-indigo-400"
     },
     {
-      icon: Clock,
-      title: "Real-time Monitoring",
-      description: "Track your automations in real-time with detailed analytics and instant notifications."
+      icon: Bot,
+      title: "AI-Powered Automation",
+      description: "Smart triggers and actions that learn from your patterns and optimize workflows.",
+      color: "from-blue-400 to-cyan-400"
     },
     {
-      icon: Users,
-      title: "Team Collaboration",
-      description: "Share and collaborate on automations with your team. Built for modern workflows."
+      icon: Shield,
+      title: "Enterprise Security",
+      description: "Bank-level encryption and compliance with SOC2, GDPR, and HIPAA standards.",
+      color: "from-green-400 to-emerald-400"
     }
+  ];
+
+  const integrations = [
+    { name: "Slack", icon: "💬", color: "bg-purple-100" },
+    { name: "Google Drive", icon: "📂", color: "bg-blue-100" },
+    { name: "Notion", icon: "📝", color: "bg-gray-100" },
+    { name: "Salesforce", icon: "⚡", color: "bg-indigo-100" },
+    { name: "Shopify", icon: "🛍️", color: "bg-green-100" },
+    { name: "GitHub", icon: "🐱", color: "bg-gray-100" },
+    { name: "Airtable", icon: "📊", color: "bg-orange-100" },
+    { name: "Discord", icon: "🎮", color: "bg-purple-100" },
+    { name: "Stripe", icon: "💳", color: "bg-blue-100" },
+    { name: "Zoom", icon: "🎥", color: "bg-blue-100" },
+    { name: "Mailchimp", icon: "📧", color: "bg-yellow-100" },
+    { name: "Trello", icon: "📋", color: "bg-blue-100" }
   ];
 
   const testimonials = [
     {
       name: "Sarah Chen",
-      role: "Product Manager at TechCorp",
-      content: "AutoFlow saved us 20+ hours per week. The interface is intuitive and the integrations are rock solid.",
-      rating: 5
+      role: "Product Manager at TechFlow",
+      avatar: "👩‍💼",
+      content: "Autofy transformed our workflow efficiency by 300%. The visual builder is incredibly intuitive and powerful.",
+      rating: 5,
+      company: "TechFlow"
     },
     {
-      name: "Mike Rodriguez",
-      role: "Marketing Director",
-      content: "Best automation platform I've used. The visual builder makes complex workflows simple to create.",
-      rating: 5
+      name: "Marcus Johnson",
+      role: "Operations Director",
+      avatar: "👨‍💼",
+      content: "Best automation platform we've used. Setup was seamless and the integrations work flawlessly.",
+      rating: 5,
+      company: "InnovateCorp"
     },
     {
-      name: "Jessica Park",
-      role: "Operations Lead",
-      content: "Incredible time-saver. Our team productivity increased by 40% since implementing AutoFlow.",
-      rating: 5
+      name: "Elena Rodriguez",
+      role: "Marketing Lead",
+      avatar: "👩‍🚀",
+      content: "Saved us 25+ hours weekly on repetitive tasks. The AI suggestions are spot-on every time.",
+      rating: 5,
+      company: "GrowthLab"
     }
   ];
 
-  const scrollToDemo = () => {
-    document.getElementById('demo-section')?.scrollIntoView({ behavior: 'smooth' });
-  };
-
   return (
-    <div className="min-h-screen bg-gray-900 text-white overflow-hidden">
+    <div className="min-h-screen bg-white overflow-hidden relative">
+      {/* Floating 3D Elements */}
+      <div className="fixed inset-0 pointer-events-none z-10">
+        <div 
+          className="absolute top-20 left-20 w-16 h-16 opacity-20"
+          style={{ transform: get3DTransform(0.5) }}
+        >
+          <div className="w-full h-full rounded-2xl bg-gradient-to-br from-pink-400 to-purple-500 shadow-lg flex items-center justify-center">
+            <Bot className="w-8 h-8 text-white" />
+          </div>
+        </div>
+        <div 
+          className="absolute top-40 right-32 w-12 h-12 opacity-20"
+          style={{ transform: get3DTransform(-0.3) }}
+        >
+          <div className="w-full h-full rounded-xl bg-gradient-to-br from-blue-400 to-cyan-500 shadow-lg flex items-center justify-center">
+            <Zap className="w-6 h-6 text-white" />
+          </div>
+        </div>
+        <div 
+          className="absolute bottom-40 left-32 w-14 h-14 opacity-20"
+          style={{ transform: get3DTransform(0.8) }}
+        >
+          <div className="w-full h-full rounded-full bg-gradient-to-br from-green-400 to-emerald-500 shadow-lg flex items-center justify-center">
+            <Workflow className="w-7 h-7 text-white" />
+          </div>
+        </div>
+      </div>
+
       {/* Navigation */}
-      <nav className="fixed top-0 w-full z-50 bg-gray-900/80 backdrop-blur-md border-b border-gray-800">
+      <nav className="fixed top-0 w-full z-50 bg-white/80 backdrop-blur-xl border-b border-gray-100">
         <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
-          <div className="flex items-center space-x-2">
-            <div className="w-8 h-8 rounded-lg bg-gradient-to-r from-blue-500 to-violet-500 flex items-center justify-center">
-              <Zap className="w-5 h-5 text-white" />
+          <div className="flex items-center space-x-3">
+            <div className="w-10 h-10 rounded-xl bg-gradient-to-r from-pink-500 via-purple-500 to-blue-500 flex items-center justify-center shadow-lg">
+              <Bot className="w-6 h-6 text-white" />
             </div>
-            <span className="text-xl font-bold bg-gradient-to-r from-blue-400 to-violet-400 bg-clip-text text-transparent">
-              AutoFlow
+            <span className="text-2xl font-bold bg-gradient-to-r from-pink-600 to-purple-600 bg-clip-text text-transparent">
+              Autofy
             </span>
           </div>
-          <div className="flex items-center space-x-6">
-            <a href="#features" className="text-gray-300 hover:text-white transition-colors">Features</a>
-            <a href="#testimonials" className="text-gray-300 hover:text-white transition-colors">Testimonials</a>
+          
+          <div className="hidden md:flex items-center space-x-8">
+            <a href="#product" className="text-gray-600 hover:text-gray-900 transition-colors font-medium">Product</a>
+            <a href="#solutions" className="text-gray-600 hover:text-gray-900 transition-colors font-medium">Solutions</a>
+            <a href="#pricing" className="text-gray-600 hover:text-gray-900 transition-colors font-medium">Pricing</a>
+            <a href="#docs" className="text-gray-600 hover:text-gray-900 transition-colors font-medium">Docs</a>
+            <a href="#community" className="text-gray-600 hover:text-gray-900 transition-colors font-medium">Community</a>
+          </div>
+
+          <div className="flex items-center space-x-4">
             <Link 
-              to="/dashboard" 
-              className="bg-gradient-to-r from-blue-500 to-violet-500 px-6 py-2 rounded-lg font-medium hover:scale-105 transition-transform duration-300"
+              to="/login" 
+              className="text-gray-600 hover:text-gray-900 transition-colors font-medium"
             >
               Sign In
             </Link>
             <Link 
               to="/signup" 
-              className="border border-gray-600 px-6 py-2 rounded-lg font-medium hover:border-gray-500 transition-colors duration-300"
+              className="bg-gradient-to-r from-pink-500 to-purple-600 text-white px-6 py-2.5 rounded-xl font-semibold hover:shadow-lg hover:scale-105 transition-all duration-300"
             >
               Sign Up
             </Link>
@@ -174,75 +181,117 @@ const LandingPage: React.FC = () => {
         </div>
       </nav>
 
-      {/* Hero Section */}
-      <section ref={heroRef} className="relative pt-32 pb-20 px-6">
-        {/* Floating background elements */}
-        <div className="absolute inset-0 overflow-hidden">
-          <div className="floating-icon absolute top-20 left-20 w-12 h-12 bg-blue-500/20 rounded-full flex items-center justify-center">
-            <Zap className="w-6 h-6 text-blue-400" />
-          </div>
-          <div className="floating-icon absolute top-40 right-32 w-16 h-16 bg-violet-500/20 rounded-full flex items-center justify-center">
-            <Sparkles className="w-8 h-8 text-violet-400" />
-          </div>
-          <div className="floating-icon absolute bottom-40 left-32 w-10 h-10 bg-green-500/20 rounded-full flex items-center justify-center">
-            <CheckCircle className="w-5 h-5 text-green-400" />
+      {/* Hero Section with Background Video */}
+      <section ref={heroRef} className="relative min-h-screen flex items-center justify-center overflow-hidden">
+        {/* Background Video */}
+        <div className="absolute inset-0 z-0">
+          <video
+            ref={videoRef}
+            className="w-full h-full object-cover"
+            autoPlay
+            muted
+            loop
+            playsInline
+          >
+            {/* For your actual implementation, use this path: */}
+            <source src="/background-video.mp4" type="video/mp4" />
+            {/* Placeholder for demo - replace with your actual video */}
+            <div className="w-full h-full bg-gradient-to-br from-pink-100 via-purple-50 to-blue-100"></div>
+          </video>
+          {/* Video overlay for better text readability */}
+          <div className="absolute inset-0 bg-gradient-to-b from-black/20 via-black/10 to-black/30"></div>
+        </div>
+
+        {/* Animated particles */}
+        <div className="absolute inset-0 z-10">
+          {[...Array(20)].map((_, i) => (
+            <div
+              key={i}
+              className="absolute w-2 h-2 bg-white/30 rounded-full animate-pulse"
+              style={{
+                left: `${Math.random() * 100}%`,
+                top: `${Math.random() * 100}%`,
+                animationDelay: `${Math.random() * 3}s`,
+                animationDuration: `${2 + Math.random() * 3}s`
+              }}
+            />
+          ))}
+        </div>
+
+{/* Hero Content */}
+<div className="relative -top-16 left-[-200px] z-20 text-left px-6 max-w-4xl">
+  <div
+    className="transform transition-all duration-1000"
+    style={{ transform: get3DTransform(0.1) }}
+  >
+    <h1 className="text-3xl md:text-5xl font-bold mb-6 text-white drop-shadow-2xl">
+      Automate Tasks{' '}
+      <span className="bg-gradient-to-r from-pink-400 via-purple-400 to-blue-400 bg-clip-text text-transparent text-4xl md:text-5xl font-extrabold">
+        Effortlessly
+      </span>
+    </h1>
+    <p className="text-2xl md:text-2xl text-white/90 mb-6 max-w-2xl leading-relaxed drop-shadow-lg">
+      Transform your workflows with intelligent automation. Connect apps,
+      eliminate repetitive tasks, and focus on what truly matters.
+    </p>
+    <div className="flex flex-col sm:flex-row items-start sm:space-x-4">
+      <Link
+        to="/signup"
+        className="group bg-gradient-to-r from-pink-500 to-purple-600 text-white/80 px-6 py-3 rounded-xl font-semibold text-base hover:shadow-xl hover:scale-105 transition-all duration-300 flex items-center space-x-2"
+        onMouseEnter={() => setIsHovering(true)}
+        onMouseLeave={() => setIsHovering(false)}
+      >
+        <span>Get Started Free</span>
+        <ArrowRight
+          className={`w-5 h-5 transition-transform duration-300 ${
+            isHovering ? 'translate-x-1' : ''
+          }`}
+        />
+      </Link>
+            </div>
           </div>
         </div>
 
-        <div className="max-w-7xl mx-auto text-center relative z-10">
-          <h1 className="hero-title text-6xl md:text-7xl font-bold mb-6">
-            Automate Your Workflow,{' '}
-            <span className="bg-gradient-to-r from-blue-400 via-violet-400 to-green-400 bg-clip-text text-transparent">
-              Effortlessly
-            </span>
-          </h1>
-          <p className="hero-subtitle text-xl text-gray-300 mb-8 max-w-3xl mx-auto leading-relaxed">
-            Connect your favorite apps and automate repetitive tasks with our visual workflow builder. 
-            Save time, reduce errors, and focus on what matters most.
-          </p>
-          <div className="hero-cta flex flex-col sm:flex-row items-center justify-center space-y-4 sm:space-y-0 sm:space-x-6">
-            <Link 
-              to="/signup"
-              className="bg-gradient-to-r from-blue-500 to-violet-500 px-8 py-4 rounded-xl font-semibold text-lg hover:scale-105 transition-transform duration-300 flex items-center space-x-2"
-            >
-              <span>Start Automating</span>
-              <ArrowRight className="w-5 h-5" />
-            </Link>
-            <button 
-              onClick={scrollToDemo}
-              className="border border-gray-600 px-8 py-4 rounded-xl font-semibold text-lg hover:border-gray-500 transition-colors duration-300 flex items-center space-x-2"
-            >
-              <Play className="w-5 h-5" />
-              <span>Watch Live Demo</span>
-            </button>
+        {/* Scroll indicator */}
+        <div className="absolute bottom-8 left-1/2 transform -translate-x-1/2 z-20">
+          <div className="w-6 h-10 border-2 border-white/60 rounded-full flex justify-center">
+            <div className="w-1 h-3 bg-white/80 rounded-full mt-2 animate-bounce"></div>
           </div>
         </div>
       </section>
 
       {/* Features Section */}
-      <section id="features" ref={featuresRef} className="py-20 px-6 bg-gray-800/50">
+      <section className="py-24 px-6 bg-gradient-to-b from-gray-50 to-white">
         <div className="max-w-7xl mx-auto">
-          <div className="text-center mb-16">
-            <h2 className="text-4xl font-bold mb-4">
+          <div className="text-center mb-20">
+            <h2 className="text-5xl font-bold mb-6 text-gray-900">
               Why Choose{' '}
-              <span className="bg-gradient-to-r from-blue-400 to-violet-400 bg-clip-text text-transparent">
-                AutoFlow
+              <span className="bg-gradient-to-r from-pink-600 to-purple-600 bg-clip-text text-transparent">
+                Autofy?
               </span>
             </h2>
-            <p className="text-xl text-gray-300 max-w-2xl mx-auto">
-              Powerful features designed to make automation simple, fast, and reliable for teams of all sizes.
+            <p className="text-xl text-gray-600 max-w-3xl mx-auto">
+              Powerful automation features designed for modern teams. Simple to use, impossible to outgrow.
             </p>
           </div>
+
           <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-8">
             {features.map((feature, index) => {
               const Icon = feature.icon;
               return (
-                <div key={index} className="feature-card bg-gray-800 p-6 rounded-xl border border-gray-700 hover:border-blue-500/50 transition-all duration-300 group">
-                  <div className="w-12 h-12 rounded-lg bg-gradient-to-r from-blue-500 to-violet-500 flex items-center justify-center mb-4 group-hover:scale-110 transition-transform duration-300">
-                    <Icon className="w-6 h-6 text-white" />
+                <div 
+                  key={index} 
+                  className="group bg-white p-8 rounded-3xl shadow-lg hover:shadow-2xl transition-all duration-500 border border-gray-100 hover:border-gray-200 cursor-pointer"
+                  style={{ 
+                    transform: `perspective(1000px) rotateX(${(mousePosition.y / window.innerHeight - 0.5) * -5}deg) rotateY(${(mousePosition.x / window.innerWidth - 0.5) * 5}deg)`,
+                    transformStyle: 'preserve-3d'
+                  }}
+                >
+                  <div className={`w-16 h-16 rounded-2xl bg-gradient-to-r ${feature.color} flex items-center justify-center mb-6 group-hover:scale-110 transition-transform duration-300 shadow-lg`}>
+                    <Icon className="w-8 h-8 text-white" />
                   </div>
-                  <h3 className="text-xl font-semibold mb-3">{feature.title}</h3>
-                  <p className="text-gray-300">{feature.description}</p>
+                  <h3 className="text-xl font-bold mb-4 text-gray-900">{feature.title}</h3>
+                  <p className="text-gray-600 leading-relaxed">{feature.description}</p>
                 </div>
               );
             })}
@@ -250,44 +299,64 @@ const LandingPage: React.FC = () => {
         </div>
       </section>
 
-      {/* Demo Section */}
-      <section id="demo-section" className="py-20 px-6">
-        <div className="max-w-4xl mx-auto text-center">
-          <h2 className="text-4xl font-bold mb-8">See AutoFlow in Action</h2>
-          <div className="bg-gray-800 rounded-2xl p-8 border border-gray-700">
-            <div className="aspect-video bg-gradient-to-br from-gray-700 to-gray-800 rounded-xl flex items-center justify-center">
-              <button className="w-20 h-20 bg-gradient-to-r from-blue-500 to-violet-500 rounded-full flex items-center justify-center hover:scale-110 transition-transform duration-300">
-                <Play className="w-8 h-8 text-white ml-1" />
-              </button>
+      {/* Integration Showcase */}
+      <section className="py-24 px-6 bg-gradient-to-r from-pink-50 via-purple-50 to-blue-50">
+        <div className="max-w-7xl mx-auto text-center">
+          <h2 className="text-4xl font-bold mb-4 text-gray-900">Connect Everything</h2>
+          <p className="text-xl text-gray-600 mb-16 max-w-2xl mx-auto">
+            Seamlessly integrate with 1000+ apps and services you already use
+          </p>
+
+          <div className="relative overflow-hidden">
+            <div className="flex animate-scroll space-x-8 w-max">
+              {[...integrations, ...integrations].map((integration, index) => (
+                <div
+                  key={index}
+                  className={`flex-shrink-0 w-24 h-24 ${integration.color} rounded-2xl flex flex-col items-center justify-center group hover:scale-110 transition-transform duration-300 shadow-lg cursor-pointer`}
+                >
+                  <div className="text-2xl mb-1">{integration.icon}</div>
+                  <div className="text-xs font-medium text-gray-700">{integration.name}</div>
+                </div>
+              ))}
             </div>
-            <p className="text-gray-300 mt-6">
-              Watch how easy it is to create your first automation in under 2 minutes
-            </p>
           </div>
         </div>
       </section>
 
-      {/* Testimonials Section */}
-      <section id="testimonials" ref={testimonialsRef} className="py-20 px-6 bg-gray-800/50">
+      {/* Testimonials */}
+      <section className="py-24 px-6 bg-white">
         <div className="max-w-7xl mx-auto">
-          <div className="text-center mb-16">
-            <h2 className="text-4xl font-bold mb-4">Loved by Thousands</h2>
-            <p className="text-xl text-gray-300">
-              Join over 10,000+ users who have transformed their workflows
+          <div className="text-center mb-20">
+            <h2 className="text-4xl font-bold mb-4 text-gray-900">Loved by 50,000+ Teams</h2>
+            <p className="text-xl text-gray-600">
+              Join thousands of companies automating their workflows with Autofy
             </p>
           </div>
+
           <div className="grid md:grid-cols-3 gap-8">
             {testimonials.map((testimonial, index) => (
-              <div key={index} className="testimonial-card bg-gray-800 p-6 rounded-xl border border-gray-700">
-                <div className="flex items-center mb-4">
+              <div 
+                key={index} 
+                className="bg-gradient-to-br from-white to-gray-50 p-8 rounded-3xl border border-gray-100 hover:border-gray-200 hover:shadow-xl transition-all duration-300 group"
+                style={{ transform: get3DTransform(0.05) }}
+              >
+                <div className="flex items-center mb-6">
                   {[...Array(testimonial.rating)].map((_, i) => (
                     <Star key={i} className="w-5 h-5 text-yellow-400 fill-current" />
                   ))}
                 </div>
-                <p className="text-gray-300 mb-4">"{testimonial.content}"</p>
-                <div>
-                  <p className="font-semibold">{testimonial.name}</p>
-                  <p className="text-sm text-gray-400">{testimonial.role}</p>
+                <blockquote className="text-gray-700 mb-6 text-lg leading-relaxed">
+                  "{testimonial.content}"
+                </blockquote>
+                <div className="flex items-center space-x-4">
+                  <div className="w-12 h-12 rounded-full bg-gradient-to-r from-pink-400 to-purple-500 flex items-center justify-center text-xl">
+                    {testimonial.avatar}
+                  </div>
+                  <div>
+                    <div className="font-bold text-gray-900">{testimonial.name}</div>
+                    <div className="text-sm text-gray-600">{testimonial.role}</div>
+                    <div className="text-sm text-gray-500">{testimonial.company}</div>
+                  </div>
                 </div>
               </div>
             ))}
@@ -295,72 +364,119 @@ const LandingPage: React.FC = () => {
         </div>
       </section>
 
+      {/* Final CTA */}
+      <section className="py-24 px-6 bg-gradient-to-r from-pink-600 via-purple-600 to-blue-600">
+        <div className="max-w-4xl mx-auto text-center text-white">
+          <h2 className="text-5xl font-bold mb-6">Ready to Automate?</h2>
+          <p className="text-xl mb-12 opacity-90 max-w-2xl mx-auto">
+            Join 50,000+ teams already saving time with intelligent automation. Start free, no credit card required.
+          </p>
+          <Link 
+            to="/signup"
+            className="inline-flex items-center space-x-3 bg-white text-purple-600 px-10 py-4 rounded-2xl font-bold text-lg hover:shadow-2xl hover:scale-105 transition-all duration-300"
+          >
+            <span>Start Automating Now</span>
+            <ArrowRight className="w-6 h-6" />
+          </Link>
+        </div>
+      </section>
+
       {/* Footer */}
-      <footer className="bg-gray-900 border-t border-gray-800 py-12 px-6">
+      <footer className="bg-gray-900 text-white py-16 px-6">
         <div className="max-w-7xl mx-auto">
-          <div className="grid md:grid-cols-3 gap-8">
-            <div>
-              <div className="flex items-center space-x-2 mb-4">
-                <div className="w-8 h-8 rounded-lg bg-gradient-to-r from-blue-500 to-violet-500 flex items-center justify-center">
-                  <Zap className="w-5 h-5 text-white" />
+          <div className="grid md:grid-cols-4 gap-8 mb-12">
+            <div className="md:col-span-1">
+              <div className="flex items-center space-x-3 mb-6">
+                <div className="w-10 h-10 rounded-xl bg-gradient-to-r from-pink-500 to-purple-600 flex items-center justify-center">
+                  <Bot className="w-6 h-6 text-white" />
                 </div>
-                <span className="text-xl font-bold">AutoFlow</span>
+                <span className="text-2xl font-bold">Autofy</span>
               </div>
-              <p className="text-gray-400 mb-4">
-                The most powerful automation platform for modern teams.
+              <p className="text-gray-400 mb-6 leading-relaxed">
+                The most powerful automation platform for modern teams. Simple, secure, scalable.
               </p>
               <div className="flex space-x-4">
-                <a href="#" className="text-gray-400 hover:text-white transition-colors">
+                <a href="#" className="text-gray-400 hover:text-white transition-colors p-2 rounded-lg hover:bg-gray-800">
                   <Twitter className="w-5 h-5" />
                 </a>
-                <a href="#" className="text-gray-400 hover:text-white transition-colors">
+                <a href="#" className="text-gray-400 hover:text-white transition-colors p-2 rounded-lg hover:bg-gray-800">
                   <Github className="w-5 h-5" />
                 </a>
-                <a href="#" className="text-gray-400 hover:text-white transition-colors">
+                <a href="#" className="text-gray-400 hover:text-white transition-colors p-2 rounded-lg hover:bg-gray-800">
                   <Mail className="w-5 h-5" />
                 </a>
               </div>
             </div>
+            
             <div>
-              <h3 className="font-semibold mb-4">Quick Links</h3>
-              <div className="space-y-2">
-                <Link to="/dashboard" className="block text-gray-400 hover:text-white transition-colors">
-                  Sign In
-                </Link>
-                <Link to="/signup" className="block text-gray-400 hover:text-white transition-colors">
-                  Sign Up
-                </Link>
-                <a href="#" className="block text-gray-400 hover:text-white transition-colors">
-                  Documentation
-                </a>
-                <a href="#" className="block text-gray-400 hover:text-white transition-colors">
-                  Support
-                </a>
+              <h3 className="font-bold mb-6 text-lg">Product</h3>
+              <div className="space-y-4">
+                <a href="#" className="block text-gray-400 hover:text-white transition-colors">Features</a>
+                <a href="#" className="block text-gray-400 hover:text-white transition-colors">Integrations</a>
+                <a href="#" className="block text-gray-400 hover:text-white transition-colors">Templates</a>
+                <a href="#" className="block text-gray-400 hover:text-white transition-colors">API</a>
               </div>
             </div>
+            
             <div>
-              <h3 className="font-semibold mb-4">Resources</h3>
-              <div className="space-y-2">
-                <a href="#" className="block text-gray-400 hover:text-white transition-colors">
-                  API Documentation
-                </a>
-                <a href="#" className="block text-gray-400 hover:text-white transition-colors">
-                  Templates
-                </a>
-                <a href="#" className="block text-gray-400 hover:text-white transition-colors">
-                  Community
-                </a>
-                <a href="#" className="block text-gray-400 hover:text-white transition-colors">
-                  GitHub
-                </a>
+              <h3 className="font-bold mb-6 text-lg">Company</h3>
+              <div className="space-y-4">
+                <a href="#" className="block text-gray-400 hover:text-white transition-colors">About</a>
+                <a href="#" className="block text-gray-400 hover:text-white transition-colors">Careers</a>
+                <a href="#" className="block text-gray-400 hover:text-white transition-colors">Blog</a>
+                <a href="#" className="block text-gray-400 hover:text-white transition-colors">Press</a>
+              </div>
+            </div>
+            
+            <div>
+              <h3 className="font-bold mb-6 text-lg">Support</h3>
+              <div className="space-y-4">
+                <a href="#" className="block text-gray-400 hover:text-white transition-colors">Documentation</a>
+                <a href="#" className="block text-gray-400 hover:text-white transition-colors">Community</a>
+                <a href="#" className="block text-gray-400 hover:text-white transition-colors">Help Center</a>
+                <a href="#" className="block text-gray-400 hover:text-white transition-colors">Contact</a>
               </div>
             </div>
           </div>
-          <div className="border-t border-gray-800 mt-8 pt-8 text-center text-gray-400">
-            <p>&copy; 2025 AutoFlow. All rights reserved.</p>
+          
+          <div className="border-t border-gray-800 pt-8 flex flex-col md:flex-row justify-between items-center">
+            <p className="text-gray-400 mb-4 md:mb-0">&copy; 2025 Autofy. All rights reserved.</p>
+            <div className="flex space-x-8 text-sm">
+              <a href="#" className="text-gray-400 hover:text-white transition-colors">Privacy Policy</a>
+              <a href="#" className="text-gray-400 hover:text-white transition-colors">Terms of Service</a>
+              <a href="#" className="text-gray-400 hover:text-white transition-colors">Cookie Policy</a>
+            </div>
           </div>
         </div>
       </footer>
+
+      <style jsx>{`
+        @keyframes scroll {
+          0% {
+            transform: translateX(0);
+          }
+          100% {
+            transform: translateX(-50%);
+          }
+        }
+        
+        .animate-scroll {
+          animation: scroll 30s linear infinite;
+        }
+        
+        @keyframes float {
+          0%, 100% {
+            transform: translateY(0px);
+          }
+          50% {
+            transform: translateY(-20px);
+          }
+        }
+        
+        .animate-float {
+          animation: float 3s ease-in-out infinite;
+        }
+      `}</style>
     </div>
   );
 };

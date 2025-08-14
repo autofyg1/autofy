@@ -44,6 +44,25 @@ export const createZap = async (config: ZapConfiguration): Promise<{ data: Zap |
       throw new Error('User not authenticated');
     }
 
+    // Check if there's AI processing in the workflow
+    const hasAiProcessing = config.steps.some(step => 
+      step.service_name === 'openrouter' && step.event_type === 'process_with_ai'
+    );
+
+    // Process steps to ensure Telegram message templates are generated
+    const processedSteps = config.steps.map(step => {
+      if (step.service_name === 'telegram' && step.event_type === 'send_message' && step.configuration.message_title) {
+        // Generate the message template if not already present
+        if (!step.configuration.message_template) {
+          step.configuration.message_template = generateTelegramMessageTemplate(
+            step.configuration.message_title,
+            hasAiProcessing
+          );
+        }
+      }
+      return step;
+    });
+
     // First create the zap
     const { data: zapData, error: zapError } = await supabase
       .from('zaps')
@@ -59,7 +78,7 @@ export const createZap = async (config: ZapConfiguration): Promise<{ data: Zap |
     if (zapError) throw zapError;
 
     // Then create the steps
-    const stepsToInsert = config.steps.map((step, index) => ({
+    const stepsToInsert = processedSteps.map((step, index) => ({
       zap_id: zapData.id,
       step_order: index,
       step_type: step.step_type,
@@ -303,12 +322,12 @@ export const serviceConfigs = {
         description: 'Send a message to your connected Telegram chat',
         fields: [
           {
-            key: 'message_template',
-            label: 'Message Template',
-            type: 'textarea',
-            placeholder: '📧 New Email Alert\n\n📤 From: {{sender}}\n📝 Subject: {{subject}}\n🕒 Time: {{timestamp}}\n\n{{ai_content}}',
+            key: 'message_title',
+            label: 'Message Title',
+            type: 'text',
+            placeholder: 'New Email Alert',
             required: true,
-            description: 'Message template with dynamic variables. Use HTML formatting: <b>bold</b>, <i>italic</i>, <code>code</code>. Available: {{sender}}, {{subject}}, {{timestamp}}, {{body}}, {{ai_content}}'
+            description: 'Title for your Telegram notification. A default template with sender, subject, and content will be automatically added.'
           },
           {
             key: 'parse_mode',
@@ -364,4 +383,16 @@ export const serviceConfigs = {
 // Get available triggers/actions for a service
 export const getServiceConfig = (serviceName: string) => {
   return serviceConfigs[serviceName as keyof typeof serviceConfigs] || null;
+};
+
+// Generate default Telegram message template based on configuration
+export const generateTelegramMessageTemplate = (title: string, hasAiProcessing: boolean = false): string => {
+  const contentVariable = hasAiProcessing ? '{{ai_content}}' : '{{body}}';
+  
+  return `📧 <b>${title}</b>\n\n` +
+    `<b>From:</b> {{sender}}\n` +
+    `<b>Subject:</b> {{subject}}\n` +
+    `<b>Time:</b> {{timestamp}}\n\n` +
+    `${contentVariable}\n\n` +
+    `<i>⚡ Automated by Autofy</i>`;
 };

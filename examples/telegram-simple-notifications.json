@@ -17,7 +17,7 @@
       "service_name": "telegram", 
       "event_type": "send_message",
       "configuration": {
-        "message_template": "📬 <b>New Email Received</b>\n\n📤 <b>From:</b> {{sender}}\n📝 <b>Subject:</b> {{subject}}\n🕒 <b>Time:</b> {{timestamp}}\n\n📄 <b>Preview:</b>\n{{body_preview}}\n\n<i>💬 Check your email app for full details</i>",
+        "message_title": "New Email Received",
         "parse_mode": "HTML",
         "disable_web_page_preview": true,
         "disable_notification": false

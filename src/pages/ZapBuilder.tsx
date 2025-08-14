@@ -431,6 +431,18 @@ const ZapBuilder: React.FC = () => {
                             configuration={step.configuration}
                             onConfigChange={(config) => updateStepConfig(step.id, config)}
                             onEventChange={(eventType) => updateStepEvent(step.id, eventType)}
+                            allSteps={steps.map(s => ({
+                              step_type: s.type,
+                              service_name: (() => {
+                                let serviceName = s.app?.toLowerCase().replace(/\s+/g, '') || '';
+                                if (serviceName === 'aiprocessing') {
+                                  serviceName = 'openrouter';
+                                }
+                                return serviceName;
+                              })(),
+                              event_type: s.event || '',
+                              configuration: s.configuration
+                            }))}
                           />
                         </div>
                       )}
