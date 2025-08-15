@@ -1,0 +1,48 @@
+{
+  "name": "Smart Email Forwarding with AI Summary",
+  "description": "Forward important emails to team members with AI-generated summaries",
+  "steps": [
+    {
+      "step_type": "trigger",
+      "service_name": "gmail",
+      "event_type": "new_email",
+      "configuration": {
+        "keywords": "urgent, important, deadline, critical, asap, priority",
+        "from_email": ""
+      }
+    },
+    {
+      "step_type": "action",
+      "service_name": "openrouter",
+      "event_type": "process_with_ai",
+      "configuration": {
+        "model": "meta-llama/llama-3.2-3b-instruct:free",
+        "prompt": "Create a concise executive summary of this email for team forwarding:\n\n**PRIORITY LEVEL**: Assess as High/Medium/Low\n**KEY POINTS**: List 2-3 main points\n**ACTION REQUIRED**: What needs to be done (if any)\n**DEADLINE**: Any time-sensitive information\n**RECOMMENDATION**: Brief recommendation for next steps\n\nEmail to summarize:\nFrom: {{sender}}\nSubject: {{subject}}\nContent: {{body}}",
+        "max_tokens": 400,
+        "temperature": 0.3
+      }
+    },
+    {
+      "step_type": "action",
+      "service_name": "gmail",
+      "event_type": "send_email",
+      "configuration": {
+        "to_email": "team@yourcompany.com",
+        "subject_template": "🚨 Priority Email Alert: {{subject}}",
+        "body_template": "Hi Team,\n\nAn important email has been received that requires attention:\n\n--- AI SUMMARY ---\n{{ai_content}}\n\n--- ORIGINAL EMAIL ---\nFrom: {{sender}}\nSubject: {{subject}}\nReceived: {{timestamp}}\n\n{{body}}\n\n--- END ORIGINAL EMAIL ---\n\nThis email was automatically forwarded based on priority keywords.\nPlease review and take appropriate action.\n\nBest regards,\nAutomated Email System",
+        "is_html": "false"
+      }
+    },
+    {
+      "step_type": "action",
+      "service_name": "telegram",
+      "event_type": "send_message",
+      "configuration": {
+        "message_title": "📬 Priority Email Forwarded to Team",
+        "parse_mode": "HTML",
+        "disable_web_page_preview": "true",
+        "disable_notification": "false"
+      }
+    }
+  ]
+}

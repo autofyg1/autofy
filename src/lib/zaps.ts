@@ -216,7 +216,86 @@ export const serviceConfigs = {
         ]
       }
     ],
-    actions: []
+    actions: [
+      {
+        id: 'send_email',
+        name: 'Send Email',
+        description: 'Send a new email to any recipient',
+        fields: [
+          {
+            key: 'to_email',
+            label: 'To Email',
+            type: 'email',
+            placeholder: 'recipient@example.com',
+            required: true,
+            description: 'Email address of the recipient'
+          },
+          {
+            key: 'subject_template',
+            label: 'Subject Template',
+            type: 'text',
+            placeholder: 'Re: {{subject}} - AI Response',
+            required: true,
+            description: 'Email subject. Use {{field}} for dynamic values like {{subject}}, {{sender}}'
+          },
+          {
+            key: 'body_template',
+            label: 'Email Body Template',
+            type: 'textarea',
+            placeholder: 'Hi there,\n\n{{ai_content}}\n\nBest regards,\nYour Assistant',
+            required: true,
+            description: 'Email body content. Use {{field}} for dynamic values. Available: {{ai_content}} if AI processed, {{body}}, {{sender}}, {{subject}}'
+          },
+          {
+            key: 'is_html',
+            label: 'HTML Format',
+            type: 'select',
+            placeholder: 'Send as HTML',
+            required: false,
+            description: 'Whether to send the email as HTML formatted text',
+            options: [
+              { value: 'false', label: 'Plain Text (Recommended)' },
+              { value: 'true', label: 'HTML Format' }
+            ]
+          }
+        ]
+      },
+      {
+        id: 'send_reply',
+        name: 'Send Reply',
+        description: 'Reply to the original email sender',
+        fields: [
+          {
+            key: 'body_template',
+            label: 'Reply Body Template',
+            type: 'textarea',
+            placeholder: 'Thank you for your email.\n\n{{ai_content}}\n\nBest regards',
+            required: true,
+            description: 'Reply content. Use {{field}} for dynamic values. Available: {{ai_content}} if AI processed, {{body}}, {{sender}}, {{subject}}'
+          },
+          {
+            key: 'custom_to_email',
+            label: 'Custom Reply Email (Optional)',
+            type: 'email',
+            placeholder: 'Leave empty to reply to original sender',
+            required: false,
+            description: 'Override the reply recipient. Leave empty to reply to the original sender'
+          },
+          {
+            key: 'is_html',
+            label: 'HTML Format',
+            type: 'select',
+            placeholder: 'Send as HTML',
+            required: false,
+            description: 'Whether to send the reply as HTML formatted text',
+            options: [
+              { value: 'false', label: 'Plain Text (Recommended)' },
+              { value: 'true', label: 'HTML Format' }
+            ]
+          }
+        ]
+      }
+    ]
   },
   openrouter: {
     name: 'AI Processing',

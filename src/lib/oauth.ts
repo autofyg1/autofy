@@ -22,6 +22,7 @@ export const oauthConfigs: Record<string, OAuthConfig> = {
     redirectUri: `https://cheery-nasturtium-54af2b.netlify.app/oauth/callback/gmail`,
     scopes: [
       'https://www.googleapis.com/auth/gmail.readonly',
+      'https://www.googleapis.com/auth/gmail.send',
       'https://www.googleapis.com/auth/userinfo.email',
       'https://www.googleapis.com/auth/userinfo.profile'
     ],

@@ -1,0 +1,57 @@
+{
+  "name": "Complete Email Automation with AI Reply",
+  "description": "Receive emails → AI processing → Store in Notion → Send intelligent reply back",
+  "steps": [
+    {
+      "step_type": "trigger",
+      "service_name": "gmail",
+      "event_type": "new_email",
+      "configuration": {
+        "keywords": "inquiry, question, request, proposal, help, support, meeting, collaboration",
+        "from_email": ""
+      }
+    },
+    {
+      "step_type": "action",
+      "service_name": "openrouter",
+      "event_type": "process_with_ai",
+      "configuration": {
+        "model": "meta-llama/llama-3.2-3b-instruct:free",
+        "prompt": "You are a professional email assistant. Analyze this email and generate two things:\n\n1. **SUMMARY**: Create a concise summary of the email's purpose and key points\n2. **REPLY**: Generate a professional, helpful reply that:\n   - Acknowledges their message appropriately\n   - Addresses their specific questions or requests\n   - Maintains a warm, professional tone\n   - Includes next steps if applicable\n   - Is personalized to their message content\n\nEmail to analyze:\nFrom: {{sender}}\nSubject: {{subject}}\nContent: {{body}}\n\nFormat your response as:\nSUMMARY: [Your summary here]\n\nREPLY:\n[Your reply here]",
+        "max_tokens": 800,
+        "temperature": 0.4
+      }
+    },
+    {
+      "step_type": "action",
+      "service_name": "notion",
+      "event_type": "create_page",
+      "configuration": {
+        "database_id": "your-email-database-id",
+        "title_template": "📧 {{subject}} - {{sender}}",
+        "content_template": "## Email Analysis & Response\n\n**From:** {{sender}}\n**Subject:** {{subject}}\n**Received:** {{timestamp}}\n**Status:** ✅ Processed & Replied\n\n---\n\n### AI Analysis\n{{ai_content}}\n\n---\n\n### Original Email\n{{body}}\n\n---\n*Processed by {{ai_model}} on {{ai_processed_at}}*"
+      }
+    },
+    {
+      "step_type": "action",
+      "service_name": "telegram",
+      "event_type": "send_message",
+      "configuration": {
+        "message_title": "📧 Email Processed & Reply Sent",
+        "parse_mode": "HTML",
+        "disable_web_page_preview": "true",
+        "disable_notification": "false"
+      }
+    },
+    {
+      "step_type": "action",
+      "service_name": "gmail",
+      "event_type": "send_reply",
+      "configuration": {
+        "body_template": "Hi there,\n\nThank you for your email. I've reviewed your message and wanted to respond promptly.\n\n{{ai_content}}\n\nPlease feel free to reach out if you have any additional questions or need further clarification on anything.\n\nBest regards,\n[Your Name]",
+        "custom_to_email": "",
+        "is_html": "false"
+      }
+    }
+  ]
+}

@@ -1,4 +1,17 @@
 import { supabase } from "../lib/supabase.ts";
+
+export interface EmailMessage {
+  id: string;
+  subject: string;
+  sender: string;
+  body: string;
+  timestamp: Date | string;
+  threadId: string;
+  aiProcessedContent?: string;
+  aiModel?: string;
+  aiProcessedAt?: string;
+}
+
 export class GmailService {
   maxRetries = 3;
   retryDelay = 1000;
@@ -250,6 +263,205 @@ export class GmailService {
     }).eq('id', integration.id);
     console.log('Access token refreshed successfully');
     return tokens.access_token;
+  }
+
+  // Handle Gmail send actions (send_email and send_reply)
+  async handleSendAction(userId, email, actionType, configuration) {
+    try {
+      const integration = await this.retrieveIntegration(userId, 'gmail');
+      if (!integration) {
+        throw new Error('Gmail integration not found for user');
+      }
+
+      let accessToken = integration.credentials.access_token;
+
+      // Check if token needs refresh
+      if (integration.credentials.expires_at && new Date(integration.credentials.expires_at) <= new Date()) {
+        try {
+          accessToken = await this.refreshAccessToken(integration);
+        } catch (refreshError) {
+          console.error('Token refresh failed:', refreshError);
+          throw new Error('Gmail authentication expired. Please reconnect Gmail in integrations.');
+        }
+      }
+
+      if (actionType === 'send_email') {
+        return await this.sendEmail(accessToken, email, configuration);
+      } else if (actionType === 'send_reply') {
+        return await this.sendReply(accessToken, email, configuration);
+      } else {
+        throw new Error(`Unsupported Gmail action: ${actionType}`);
+      }
+    } catch (error) {
+      console.error(`Gmail ${actionType} failed:`, error);
+      return {
+        success: false,
+        error: error.message
+      };
+    }
+  }
+
+  // Send a new email
+  async sendEmail(accessToken, email, configuration) {
+    try {
+      // Process templates with email data
+      const processedSubject = this.processTemplate(configuration.subject_template, email);
+      const processedBody = this.processTemplate(configuration.body_template, email);
+
+      // Create the raw email message
+      const emailContent = this.createRawEmailMessage({
+        to: configuration.to_email,
+        subject: processedSubject,
+        body: processedBody,
+        isHtml: configuration.is_html === 'true'
+      });
+
+      // Send via Gmail API
+      const response = await fetch('https://gmail.googleapis.com/gmail/v1/users/me/messages/send', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${accessToken}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ raw: emailContent })
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`Gmail send failed: ${errorText}`);
+      }
+
+      const result = await response.json();
+      console.log('Email sent successfully:', result.id);
+
+      return {
+        success: true,
+        messageId: result.id,
+        threadId: result.threadId
+      };
+    } catch (error) {
+      console.error('Send email failed:', error);
+      throw error;
+    }
+  }
+
+  // Send a reply to the original email
+  async sendReply(accessToken, email, configuration) {
+    try {
+      // Process template with email data
+      const processedBody = this.processTemplate(configuration.body_template, email);
+
+      // Determine recipient
+      const toEmail = configuration.custom_to_email || email.sender;
+      
+      // Create reply subject
+      const replySubject = email.subject.toLowerCase().startsWith('re:') ? 
+        email.subject : `Re: ${email.subject}`;
+
+      // Create the raw reply message
+      const emailContent = this.createRawEmailMessage({
+        to: toEmail,
+        subject: replySubject,
+        body: processedBody,
+        isHtml: configuration.is_html === 'true',
+        threadId: email.threadId,
+        inReplyTo: email.id
+      });
+
+      // Send reply via Gmail API
+      const requestBody = {
+        raw: emailContent
+      };
+      
+      // Include threadId if available for proper threading
+      if (email.threadId) {
+        requestBody.threadId = email.threadId;
+      }
+
+      const response = await fetch('https://gmail.googleapis.com/gmail/v1/users/me/messages/send', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${accessToken}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(requestBody)
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`Gmail reply failed: ${errorText}`);
+      }
+
+      const result = await response.json();
+      console.log('Reply sent successfully:', result.id);
+
+      return {
+        success: true,
+        messageId: result.id,
+        threadId: result.threadId
+      };
+    } catch (error) {
+      console.error('Send reply failed:', error);
+      throw error;
+    }
+  }
+
+  // Create raw email message in base64url format for Gmail API
+  createRawEmailMessage(messageData) {
+    let emailContent = '';
+    emailContent += `To: ${messageData.to}\r\n`;
+    emailContent += `Subject: ${messageData.subject}\r\n`;
+    
+    if (messageData.inReplyTo) {
+      emailContent += `In-Reply-To: <${messageData.inReplyTo}>\r\n`;
+    }
+    
+    emailContent += `Content-Type: ${messageData.isHtml ? 'text/html' : 'text/plain'}; charset=utf-8\r\n`;
+    emailContent += `MIME-Version: 1.0\r\n`;
+    emailContent += `\r\n`;
+    emailContent += messageData.body;
+
+    // Convert to base64url format (Gmail API requirement)
+    const encoder = new TextEncoder();
+    const data = encoder.encode(emailContent);
+    const base64 = btoa(String.fromCharCode(...data));
+    
+    return base64
+      .replace(/\+/g, '-')
+      .replace(/\//g, '_')
+      .replace(/=+$/, '');
+  }
+
+  // Process template variables in content
+  processTemplate(template, email) {
+    if (!template) return '';
+    
+    let processed = template;
+    
+    // Standard email variables
+    const variables = {
+      subject: email.subject || '',
+      sender: email.sender || '',
+      body: email.body || '',
+      timestamp: email.timestamp ? new Date(email.timestamp).toISOString() : new Date().toISOString(),
+      date: email.timestamp ? new Date(email.timestamp).toLocaleDateString() : new Date().toLocaleDateString(),
+      time: email.timestamp ? new Date(email.timestamp).toLocaleTimeString() : new Date().toLocaleTimeString()
+    };
+    
+    // Add AI content if available
+    if ('aiProcessedContent' in email && email.aiProcessedContent) {
+      variables.ai_content = email.aiProcessedContent;
+      variables.ai_model = email.aiModel || 'AI';
+      variables.ai_processed_at = email.aiProcessedAt || new Date().toISOString();
+    }
+    
+    // Replace all template variables
+    Object.entries(variables).forEach(([key, value]) => {
+      const regex = new RegExp(`{{${key}}}`, 'g');
+      processed = processed.replace(regex, String(value || ''));
+    });
+    
+    return processed;
   }
 }
 

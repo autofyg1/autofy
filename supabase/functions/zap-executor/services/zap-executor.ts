@@ -295,6 +295,24 @@ export class ZapExecutor {
       return email; // Return the email unchanged for potential next steps
     }
     
+    // Handle Gmail send actions
+    if (service_name === 'gmail' && (event_type === 'send_email' || event_type === 'send_reply')) {
+      this.logger.info(`Executing Gmail ${event_type} action`);
+      
+      const gmailResult = await this.gmailService.handleSendAction(userId, email, event_type, configuration);
+      
+      if (!gmailResult.success) {
+        throw new Error(`Gmail ${event_type} failed: ${gmailResult.error}`);
+      }
+      
+      this.logger.info(`Gmail ${event_type} successful:`, {
+        messageId: gmailResult.messageId,
+        threadId: gmailResult.threadId
+      });
+      
+      return email; // Return the email unchanged for potential next steps
+    }
+    
     // Handle Telegram message sending
     if (service_name === 'telegram' && event_type === 'send_message') {
       const config: TelegramConfig = {
