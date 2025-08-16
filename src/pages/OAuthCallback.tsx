@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { useIntegrations } from '../hooks/useIntegrations';
 import { supabase } from '../lib/supabase';
+import { oauthConfigs, getConfigRedirectUri } from '../lib/oauth';
 import { Loader2, CheckCircle, AlertCircle } from 'lucide-react';
 
 const OAuthCallback: React.FC = () => {
@@ -115,6 +116,7 @@ const OAuthCallback: React.FC = () => {
             service,
             code,
             state,
+            redirectUri: getConfigRedirectUri(oauthConfigs[service]), // Get the redirectUri using helper function
             debug: true // Add debug flag
           })
         });

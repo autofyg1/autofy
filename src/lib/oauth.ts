@@ -1,7 +1,7 @@
 // OAuth configuration and utilities
 export interface OAuthConfig {
   clientId: string;
-  redirectUri: string;
+  redirectUri: string | (() => string);
   scopes: string[];
   authUrl: string;
   tokenUrl: string;
@@ -15,11 +15,40 @@ export interface OAuthTokens {
   scope?: string;
 }
 
+// Function to dynamically generate redirect URI based on current domain
+const getRedirectUri = (service: string): string => {
+  // Get the current origin (protocol + domain + port)
+  const currentOrigin = window.location.origin;
+  
+  // Allow environment variable override for production
+  const envRedirectUri = import.meta.env[`VITE_${service.toUpperCase()}_REDIRECT_URI`];
+  
+  if (envRedirectUri) {
+    console.log(`[${service}] Using environment variable redirect URI:`, envRedirectUri);
+    return envRedirectUri;
+  }
+  
+  // Dynamically construct redirect URI
+  const dynamicUri = `${currentOrigin}/oauth/callback/${service}`;
+  console.log(`[${service}] Generated dynamic redirect URI:`, dynamicUri);
+  console.log(`[${service}] Current origin:`, currentOrigin);
+  
+  return dynamicUri;
+};
+
+// Helper function to get redirect URI from config
+export const getConfigRedirectUri = (config: OAuthConfig): string => {
+  if (typeof config.redirectUri === 'function') {
+    return config.redirectUri();
+  }
+  return config.redirectUri;
+};
+
 // OAuth configurations for different services
 export const oauthConfigs: Record<string, OAuthConfig> = {
   gmail: {
     clientId: import.meta.env.VITE_GOOGLE_CLIENT_ID || '',
-    redirectUri: `https://cheery-nasturtium-54af2b.netlify.app/oauth/callback/gmail`,
+    redirectUri: () => getRedirectUri('gmail'),
     scopes: [
       'https://www.googleapis.com/auth/gmail.readonly',
       'https://www.googleapis.com/auth/gmail.send',
@@ -31,7 +60,7 @@ export const oauthConfigs: Record<string, OAuthConfig> = {
   },
   notion: {
     clientId: import.meta.env.VITE_NOTION_CLIENT_ID || '',
-    redirectUri: `https://cheery-nasturtium-54af2b.netlify.app/oauth/callback/notion`,
+    redirectUri: () => getRedirectUri('notion'),
     scopes: [],
     authUrl: 'https://api.notion.com/v1/oauth/authorize',
     tokenUrl: 'https://api.notion.com/v1/oauth/token'
@@ -47,7 +76,7 @@ export const generateAuthUrl = (service: string): string => {
 
   const params = new URLSearchParams({
     client_id: config.clientId,
-    redirect_uri: config.redirectUri,
+    redirect_uri: getConfigRedirectUri(config),
     response_type: 'code',
     state: generateState(service)
   });
@@ -116,7 +145,7 @@ export const exchangeCodeForTokens = async (
     client_secret: clientSecret,
     code,
     grant_type: 'authorization_code',
-    redirect_uri: config.redirectUri
+    redirect_uri: getConfigRedirectUri(config)
   });
 
   const response = await fetch(config.tokenUrl, {

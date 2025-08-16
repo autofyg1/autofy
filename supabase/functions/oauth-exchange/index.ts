@@ -6,6 +6,8 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
 
+// ... existing code ...
+
 serve(async (req) => {
   // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
@@ -13,22 +15,27 @@ serve(async (req) => {
   }
 
   try {
-    const { service, code, state, debug } = await req.json()
+    const { service, code, state, redirectUri, debug } = await req.json()
 
     if (debug) {
       console.log('=== EDGE FUNCTION DEBUG ===')
       console.log('Received service:', service)
       console.log('Received code:', code ? 'present' : 'missing')
       console.log('Received state:', state)
+      console.log('Received redirectUri:', redirectUri)
       console.log('Request origin:', req.headers.get('origin'))
       console.log('Request referer:', req.headers.get('referer'))
     }
 
     // Validate required parameters
-    if (!service || !code) {
-      console.error('Missing required parameters:', { service: !!service, code: !!code })
+    if (!service || !code || !redirectUri) {
+      console.error('Missing required parameters:', { 
+        service: !!service, 
+        code: !!code, 
+        redirectUri: !!redirectUri 
+      })
       return new Response(
-        JSON.stringify({ error: 'Missing required parameters' }),
+        JSON.stringify({ error: 'Missing required parameters: service, code, and redirectUri are required' }),
         { 
           status: 400, 
           headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
@@ -42,17 +49,17 @@ serve(async (req) => {
       notion: Deno.env.get('NOTION_CLIENT_SECRET')
     }
 
-    // OAuth configurations
+    // OAuth configurations - now using dynamic redirectUri
     const oauthConfigs = {
       gmail: {
         tokenUrl: 'https://oauth2.googleapis.com/token',
         clientId: Deno.env.get('GOOGLE_CLIENT_ID'),
-        redirectUri: 'https://cheery-nasturtium-54af2b.netlify.app/oauth/callback/gmail'
+        redirectUri: redirectUri // Use the redirectUri from frontend
       },
       notion: {
         tokenUrl: 'https://api.notion.com/v1/oauth/token',
         clientId: Deno.env.get('NOTION_CLIENT_ID'),
-        redirectUri: 'https://cheery-nasturtium-54af2b.netlify.app/oauth/callback/notion'
+        redirectUri: redirectUri // Use the redirectUri from frontend
       }
     }
 
@@ -101,31 +108,32 @@ serve(async (req) => {
     let tokenResponse;
     
     if (service === 'notion') {
-      // Notion uses form data with Basic Auth
-      const tokenBody = new URLSearchParams({
-        grant_type: 'authorization_code',
-        code,
-        redirect_uri: config.redirectUri,
-        client_id: config.clientId!,
-        client_secret: clientSecret
-      });
+      // Notion uses Basic Auth with client_id and client_secret in Authorization header
+      const credentials = btoa(`${config.clientId!}:${clientSecret}`);
       
       if (debug) {
         console.log('Notion token request:', {
           url: config.tokenUrl,
-          body: 'form data with credentials',
-          redirectUri: config.redirectUri
+          method: 'POST with Basic Auth',
+          redirectUri: config.redirectUri,
+          clientId: config.clientId ? 'present' : 'missing',
+          clientSecret: clientSecret ? 'present' : 'missing'
         })
       }
       
       tokenResponse = await fetch(config.tokenUrl, {
         method: 'POST',
         headers: {
+          'Authorization': `Basic ${credentials}`,
           'Content-Type': 'application/x-www-form-urlencoded',
           'Accept': 'application/json',
           'Notion-Version': '2022-06-28'
         },
-        body: tokenBody.toString()
+        body: new URLSearchParams({
+          grant_type: 'authorization_code',
+          code,
+          redirect_uri: config.redirectUri
+        }).toString()
       })
     } else {
       // Google and other services use form data
