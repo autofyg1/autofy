@@ -194,7 +194,7 @@ const LandingPage: React.FC = () => {
             playsInline
           >
             {/* For your actual implementation, use this path: */}
-            <source src="/background-video.mp4" type="video/mp4" />
+            <source src="https://pmvzgrlufqgbxgpkaqke.supabase.co/storage/v1/object/public/video/background-video.mp4" type="video/mp4" />
             {/* Placeholder for demo - replace with your actual video */}
             <div className="w-full h-full bg-gradient-to-br from-pink-100 via-purple-50 to-blue-100"></div>
           </video>
