@@ -1,5 +1,6 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState, useMemo } from 'react';
 import { Link } from 'react-router-dom';
+import { motion, useReducedMotion } from 'framer-motion';
 import { 
   Zap, 
   ArrowRight, 
@@ -19,8 +20,12 @@ import {
   MousePointer,
   Code,
   Database,
-  Globe
+  Globe,
+  FileText,
+  MessageCircle,
+  Slack
 } from 'lucide-react';
+
 
 const LandingPage: React.FC = () => {
   const heroRef = useRef<HTMLDivElement>(null);
@@ -28,7 +33,6 @@ const LandingPage: React.FC = () => {
   const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 });
   const [isHovering, setIsHovering] = useState(false);
 
-  // Track mouse movement for 3D effects
   useEffect(() => {
     const handleMouseMove = (e: MouseEvent) => {
       setMousePosition({ x: e.clientX, y: e.clientY });
@@ -38,8 +42,9 @@ const LandingPage: React.FC = () => {
     return () => window.removeEventListener('mousemove', handleMouseMove);
   }, []);
 
-  // 3D transform based on mouse position
   const get3DTransform = (intensity: number = 1) => {
+    if (typeof window === 'undefined') return 'none';
+    
     const x = (mousePosition.x / window.innerWidth - 0.5) * intensity * 20;
     const y = (mousePosition.y / window.innerHeight - 0.5) * intensity * 20;
     return `perspective(1000px) rotateX(${-y}deg) rotateY(${x}deg)`;
@@ -181,9 +186,8 @@ const LandingPage: React.FC = () => {
         </div>
       </nav>
 
-      {/* Hero Section with Background Video */}
+      {/* Hero Section with Background Video - FIXED RESPONSIVE */}
       <section ref={heroRef} className="relative min-h-screen flex items-center justify-center overflow-hidden">
-        {/* Background Video */}
         <div className="absolute inset-0 z-0">
           <video
             ref={videoRef}
@@ -193,16 +197,54 @@ const LandingPage: React.FC = () => {
             loop
             playsInline
           >
+
             {/* For your actual implementation, use this path: */}
             <source src="https://pmvzgrlufqgbxgpkaqke.supabase.co/storage/v1/object/public/video/background-video.mp4" type="video/mp4" />
             {/* Placeholder for demo - replace with your actual video */}
+
             <div className="w-full h-full bg-gradient-to-br from-pink-100 via-purple-50 to-blue-100"></div>
           </video>
-          {/* Video overlay for better text readability */}
+          
+          {/* Enhanced Responsive CSS - FIXED STYLES */}
+          <style jsx>{`
+            @media (max-width: 768px) {
+              video {
+                object-fit: cover !important;
+                height: 100vh !important;
+                background: #0f0f1a;
+              }
+              
+              .hero-text {
+                left: 0 !important;
+                top: -15% !important;
+                transform: translateY(-40%) !important; /
+                text-align: center !important;
+                padding: 0 1rem !important;
+                max-width: 100% !important;
+              }
+              
+              .hero-text h1 {
+              
+                font-size: 2.2rem !important;
+                line-height: 1.2 !important;
+              }
+              
+              .hero-text p {
+                font-size: 1rem !important;
+              }
+              
+              .hero-buttons {
+                flex-direction: column !important;
+                gap: 1rem !important;
+                align-items: center !important;
+                margin-top: 1.5rem !important;
+              }
+            }
+          `}</style>
+          
           <div className="absolute inset-0 bg-gradient-to-b from-black/20 via-black/10 to-black/30"></div>
         </div>
 
-        {/* Animated particles */}
         <div className="absolute inset-0 z-10">
           {[...Array(20)].map((_, i) => (
             <div
@@ -218,41 +260,42 @@ const LandingPage: React.FC = () => {
           ))}
         </div>
 
-{/* Hero Content */}
-<div className="relative -top-16 left-[-200px] z-20 text-left px-6 max-w-4xl">
-  <div
-    className="transform transition-all duration-1000"
-    style={{ transform: get3DTransform(0.1) }}
-  >
-    <h1 className="text-3xl md:text-5xl font-bold mb-6 text-white drop-shadow-2xl">
-      Automate Tasks{' '}
-      <span className="bg-gradient-to-r from-pink-400 via-purple-400 to-blue-400 bg-clip-text text-transparent text-4xl md:text-5xl font-extrabold">
-        Effortlessly
-      </span>
-    </h1>
-    <p className="text-2xl md:text-2xl text-white/90 mb-6 max-w-2xl leading-relaxed drop-shadow-lg">
-      Transform your workflows with intelligent automation. Connect apps,
-      eliminate repetitive tasks, and focus on what truly matters.
-    </p>
-    <div className="flex flex-col sm:flex-row items-start sm:space-x-4">
-      <Link
-        to="/signup"
-        className="group bg-gradient-to-r from-pink-500 to-purple-600 text-white/80 px-6 py-3 rounded-xl font-semibold text-base hover:shadow-xl hover:scale-105 transition-all duration-300 flex items-center space-x-2"
-        onMouseEnter={() => setIsHovering(true)}
-        onMouseLeave={() => setIsHovering(false)}
-      >
-        <span>Get Started Free</span>
-        <ArrowRight
-          className={`w-5 h-5 transition-transform duration-300 ${
-            isHovering ? 'translate-x-1' : ''
-          }`}
-        />
-      </Link>
+        {/* FIXED HERO TEXT CONTAINER */}
+        <div className="relative z-20 px-6 max-w-2xl text-center md:text-left md:max-w-4xl md:-top-16 md:left-[-200px] hero-text">
+          <div
+            className="transform transition-all duration-1000"
+            style={{ transform: get3DTransform(0.1) }}
+          >
+            <h1 className="text-xl md:text-7xl font-extrabold leading-tight text-white">
+              Automate Tasks{' '}
+              <span className="bg-gradient-to-r from-pink-400 via-purple-400 to-blue-400 bg-clip-text text-transparent">
+                Effortlessly
+              </span>
+            </h1>
+            <p className="text-xl md:text-xl text-white/90 mb-6 max-w-2xl leading-relaxed drop-shadow-lg mt-4">
+              Transform your workflows with intelligent automation.Connect apps,
+              eliminate repetitive tasks, and focus on what truly matters.
+            </p>
+            
+            {/* FIXED BUTTON CONTAINER */}
+            <div className="flex flex-col sm:flex-row items-center sm:space-x-4 space-y-3 sm:space-y-0 mt-6 hero-buttons">
+              <Link
+                to="/auth"
+                className="group bg-gradient-to-r from-pink-500 to-purple-600 text-white px-6 py-3 rounded-xl font-semibold text-base hover:shadow-xl hover:scale-105 transition-all duration-300 flex items-center space-x-2"
+                onMouseEnter={() => setIsHovering(true)}
+                onMouseLeave={() => setIsHovering(false)}
+              >
+                <span>Get Started Free</span>
+                <ArrowRight
+                  className={`w-5 h-5 transition-transform duration-300 ${
+                    isHovering ? 'translate-x-1' : ''
+                  }`}
+                />
+              </Link>
             </div>
           </div>
         </div>
 
-        {/* Scroll indicator */}
         <div className="absolute bottom-8 left-1/2 transform -translate-x-1/2 z-20">
           <div className="w-6 h-10 border-2 border-white/60 rounded-full flex justify-center">
             <div className="w-1 h-3 bg-white/80 rounded-full mt-2 animate-bounce"></div>
@@ -283,7 +326,9 @@ const LandingPage: React.FC = () => {
                   key={index} 
                   className="group bg-white p-8 rounded-3xl shadow-lg hover:shadow-2xl transition-all duration-500 border border-gray-100 hover:border-gray-200 cursor-pointer"
                   style={{ 
-                    transform: `perspective(1000px) rotateX(${(mousePosition.y / window.innerHeight - 0.5) * -5}deg) rotateY(${(mousePosition.x / window.innerWidth - 0.5) * 5}deg)`,
+                    transform: typeof window !== 'undefined' ? 
+                      `perspective(1000px) rotateX(${(mousePosition.y / window.innerHeight - 0.5) * -5}deg) rotateY(${(mousePosition.x / window.innerWidth - 0.5) * 5}deg)` : 
+                      'none',
                     transformStyle: 'preserve-3d'
                   }}
                 >
@@ -364,7 +409,7 @@ const LandingPage: React.FC = () => {
         </div>
       </section>
 
-      {/* Final CTA */}
+       {/* Final CTA */}
       <section className="py-24 px-6 bg-gradient-to-r from-pink-600 via-purple-600 to-blue-600">
         <div className="max-w-4xl mx-auto text-center text-white">
           <h2 className="text-5xl font-bold mb-6">Ready to Automate?</h2>
@@ -381,7 +426,8 @@ const LandingPage: React.FC = () => {
         </div>
       </section>
 
-      {/* Footer */}
+
+{/* Footer */}
       <footer className="bg-gray-900 text-white py-16 px-6">
         <div className="max-w-7xl mx-auto">
           <div className="grid md:grid-cols-4 gap-8 mb-12">
@@ -451,6 +497,21 @@ const LandingPage: React.FC = () => {
       </footer>
 
       <style jsx>{`
+
+//       @keyframes floatGlow {
+//   0%, 100% { 
+//     transform: translateY(0px); 
+//     text-shadow: 0 0 20px rgba(255,255,255,0.3);
+//   }
+//   50% { 
+//     transform: translateY(-8px); 
+//     text-shadow: 0 0 30px rgba(255,255,255,0.6);
+//   }
+// }
+
+// .hero-text h1 {
+//   animation: floatGlow 2.5s ease-in-out infinite;
+// }
         @keyframes scroll {
           0% {
             transform: translateX(0);
