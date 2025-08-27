@@ -1,5 +1,6 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState, useMemo } from 'react';
 import { Link } from 'react-router-dom';
+import { motion, useReducedMotion } from 'framer-motion';
 import { 
   Zap, 
   ArrowRight, 
@@ -19,8 +20,333 @@ import {
   MousePointer,
   Code,
   Database,
-  Globe
+  Globe,
+  FileText,
+  MessageCircle,
+  Slack
 } from 'lucide-react';
+
+// Configuration objects for the Galaxy component - MORE ORBITS
+const ORBITS = [
+  { label: 'Gmail', Icon: Mail, radius: 100, baseSpeed: 10, hue: 220 },
+  { label: 'Notion', Icon: FileText, radius: 140, baseSpeed: 10, hue: 280 },
+  { label: 'Telegram', Icon: MessageCircle, radius: 180, baseSpeed: 10, hue: 200 },
+  { label: 'Slack', Icon: Slack, radius: 220, baseSpeed: 10, hue: 120 },
+  { label: 'Database', Icon: Database, radius: 260, baseSpeed: 10, hue: 30 },
+  { label: 'Code', Icon: Code, radius: 300, baseSpeed: 10, hue: 260 },
+  { label: 'Globe', Icon: Globe, radius: 340, baseSpeed: 10, hue: 180 },
+  { label: 'AI', Icon: Sparkles, radius: 380, baseSpeed: 10, hue: 320 },
+  { label: 'GitHub', Icon: Github, radius: 420, baseSpeed: 10, hue: 150 },
+  { label: 'Bot', Icon: Bot, radius: 460, baseSpeed: 60, hue: 60 }
+];
+
+const SETTINGS = {
+  nodeScaleRest: 1.0,
+  nodeScaleHover: 1.18,
+  speedBoost: 0.75,
+  starCount: 140,
+  pulseMin: 0.94,
+  pulseMax: 1.06,
+  nebulaCount: 3
+};
+
+const easing = {
+  linear: [0, 0, 1, 1] as [number, number, number, number],
+  soft: [0.22, 0.61, 0.36, 1] as [number, number, number, number],
+  spring: { type: 'spring' as const, stiffness: 260, damping: 18, mass: 0.6 }
+};
+
+// Workflow Galaxy Component - COMPLETE WITH LEFT TEXT
+const WorkflowGalaxyHero = () => {
+  const prefersReducedMotion = useReducedMotion();
+  const [windowWidth, setWindowWidth] = useState(typeof window !== 'undefined' ? window.innerWidth : 1024);
+
+  // Handle window resize
+  useEffect(() => {
+    const handleResize = () => {
+      setWindowWidth(window.innerWidth);
+    };
+
+    if (typeof window !== 'undefined') {
+      window.addEventListener('resize', handleResize);
+      return () => window.removeEventListener('resize', handleResize);
+    }
+  }, []);
+  
+  const stars = useMemo(() => {
+    return Array.from({ length: SETTINGS.starCount }, (_, i) => ({
+      id: i,
+      x: Math.random() * 100,
+      y: Math.random() * 100,
+      size: 1.0 + Math.random() * 1.1,
+      opacity: 0.25 + Math.random() * 0.7,
+      duration: 2.2 + Math.random() * 4.6,
+      delay: Math.random() * 6
+    }));
+  }, []);
+
+  const nebulae = useMemo(() => {
+    return Array.from({ length: SETTINGS.nebulaCount }, (_, i) => ({
+      id: i,
+      x: 20 + Math.random() * 60,
+      y: 20 + Math.random() * 60,
+      size: 500 + Math.random() * 300,
+      hue: 220 + Math.random() * 60,
+      duration: 28 + Math.random() * 20,
+      drift: (i % 2 === 0 ? 1 : -1) * (60 + Math.random() * 20)
+    }));
+  }, []);
+
+  const phaseOffsets = useMemo(() => {
+    return ORBITS.map(() => Math.random() * 360);
+  }, []);
+
+  return (
+    <div className="relative min-h-screen overflow-hidden bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900">
+      {/* CSS Styles */}
+      <style jsx>{`
+        @keyframes twinkle {
+          0%, 100% { opacity: var(--opacity-base); transform: scale(1); }
+          50% { opacity: 1; transform: scale(1.35); }
+        }
+        @media (prefers-reduced-motion: reduce) {
+          .star { animation: none !important; }
+          .orbit { animation-duration: 90s !important; }
+          .nebula { animation: none !important; }
+        }
+      `}</style>
+
+      {/* LEFT SIDE TEXT - "Ready to Automate" */}
+      <div className="absolute left-8 top-1/2 transform -translate-y-1/2 z-30 ">
+        <motion.div
+          className="transform -rotate-90 origin-center"
+          initial={{ opacity: 0, x: -50 }}
+          animate={{ opacity: 1, x: 0 }}
+          transition={{ duration: 1, delay: 0.3 }}
+        >
+
+<div className='flex flex-col items-start space-y-4'>
+
+          <h2 className="text-4xl md:text-6xl font-bold text-white whitespace-nowrap mb-8">
+            Ready to Automate
+          </h2>
+        <div className="flex flex-row items-center gap-6 mt-[150px]">
+          <Link
+              to="/auth"
+              className="inline-block px-8 py-3 bg-gradient-to-r from-blue-500 to-purple-600 text-white font-semibold rounded-lg hover:from-blue-600 hover:to-purple-700 transition-all duration-300 shadow-lg hover:shadow-xl transform hover:scale-105"
+            >
+              Start Building
+            </Link>
+            <Link
+              to="/demo"
+              className="inline-block px-8 py-3 border border-gray-400 text-gray-300 font-semibold rounded-lg hover:border-gray-300 hover:text-white transition-all duration-300"
+            >
+              Watch Demo
+            </Link>
+             </div>
+             </div>
+        </motion.div>
+      </div>
+
+      {/* Vignette overlay */}
+      <div className="absolute inset-0 bg-gradient-to-r from-transparent via-transparent to-transparent" 
+           style={{
+             background: 'radial-gradient(ellipse at center, transparent 0%, transparent 70%, rgba(0,0,0,0.3) 100%)',
+             mixBlendMode: 'multiply'
+           }} />
+
+      {/* Starfield */}
+      {stars.map((star) => (
+        <div
+          key={star.id}
+          className="absolute star rounded-full bg-white"
+          style={{
+            left: `${star.x}%`,
+            top: `${star.y}%`,
+            width: `${star.size}px`,
+            height: `${star.size}px`,
+            '--opacity-base': star.opacity,
+            filter: 'drop-shadow(0 0 2px rgba(255,255,255,0.4))',
+            animation: prefersReducedMotion 
+              ? 'none' 
+              : `twinkle ${star.duration}s infinite ${star.delay}s ease-in-out`
+          } as React.CSSProperties}
+        />
+      ))}
+
+      {/* Nebulae */}
+      {nebulae.map((nebula) => (
+        <motion.div
+          key={nebula.id}
+          className="absolute nebula rounded-full pointer-events-none"
+          style={{
+            left: `${nebula.x}%`,
+            top: `${nebula.y}%`,
+            width: `${nebula.size}px`,
+            height: `${nebula.size}px`,
+            background: `radial-gradient(circle, hsla(${nebula.hue}, 70%, 60%, 0.15) 0%, transparent 70%)`,
+            filter: 'blur(40px)',
+            transform: 'translate(-50%, -50%)'
+          }}
+          animate={prefersReducedMotion ? {} : {
+            x: [0, nebula.drift, 0]
+          }}
+          transition={{
+            duration: nebula.duration,
+            repeat: Infinity,
+            ease: 'easeInOut'
+          }}
+        />
+      ))}
+
+      {/* Main galaxy container */}
+      <motion.div 
+        className="relative flex items-center justify-center min-h-screen"
+        whileHover={prefersReducedMotion ? {} : "hover"}
+        initial="idle"
+        variants={{
+          idle: {},
+          hover: {}
+        }}
+      >
+       
+
+        {/* Orbit rings and nodes - ALL 10 ORBITS REVOLVING */}
+        {ORBITS.map((orbit, index) => {
+          const { Icon } = orbit;
+          // Better scaling for mobile devices
+          const scaleFactor = windowWidth < 768 ? 0.4 : windowWidth < 1024 ? 0.6 : 0.8;
+          const scaledRadius = orbit.radius * scaleFactor;
+          
+          return (
+            <motion.div
+              key={orbit.label}
+              className="absolute orbit"
+              style={{
+                width: scaledRadius * 2,
+                height: scaledRadius * 2,
+                border: `1px solid hsla(${orbit.hue}, 50%, 60%, 0.15)`,
+                borderRadius: '50%',
+                boxShadow: `inset 0 0 20px hsla(${orbit.hue}, 50%, 60%, 0.1)`,
+                top: '50%',
+                left: '50%',
+                transform: 'translate(-50%, -50%)'
+              }}
+              animate={{ rotate: 360 }}
+              transition={{
+                duration: prefersReducedMotion ? 90 : orbit.baseSpeed,
+                repeat: Infinity,
+                ease: 'linear'
+              }}
+              variants={{
+                idle: {
+                  transition: { 
+                    duration: orbit.baseSpeed,
+                    repeat: Infinity,
+                    ease: 'linear'
+                  }
+                },
+                hover: {
+                  transition: { 
+                    duration: orbit.baseSpeed * SETTINGS.speedBoost,
+                    repeat: Infinity,
+                    ease: 'linear'
+                  }
+                }
+              }}
+              initial={{ rotate: phaseOffsets[index] }}
+            >
+              {/* Orbit node positioned on ring edge */}
+              <motion.div
+                className="absolute cursor-pointer"
+                style={{
+                  top: '50%',
+                  left: '50%',
+                  transform: `translate(-50%, -50%) translateX(${scaledRadius}px)`,
+                  width: 'clamp(36px, 4vw, 48px)',
+                  height: 'clamp(36px, 4vw, 48px)'
+                }}
+                tabIndex={0}
+                role="button"
+                aria-label={`${orbit.label} workflow node`}
+                whileFocus={{
+                  outline: '2px solid rgba(255, 255, 255, 0.6)',
+                  outlineOffset: '2px'
+                }}
+              >
+                <motion.div
+                  className="w-full h-full rounded-full flex items-center justify-center text-white relative"
+                  style={{
+                    background: `radial-gradient(circle, hsla(${orbit.hue}, 60%, 50%, 0.8) 0%, hsla(${orbit.hue}, 50%, 40%, 0.6) 70%, transparent 100%)`,
+                    backdropFilter: 'blur(10px)',
+                    border: `1px solid hsla(${orbit.hue}, 60%, 60%, 0.3)`
+                  }}
+                  animate={{
+                    boxShadow: [
+                      `0 0 15px hsla(${orbit.hue}, 60%, 50%, 0.6)`,
+                      `0 0 25px hsla(${orbit.hue}, 60%, 50%, 1)`,
+                      `0 0 15px hsla(${orbit.hue}, 60%, 50%, 0.6)`
+                    ]
+                  }}
+                  variants={{
+                    idle: { 
+                      scale: SETTINGS.nodeScaleRest,
+                      boxShadow: `0 0 15px hsla(${orbit.hue}, 60%, 50%, 0.6)`
+                    },
+                    hover: { 
+                      scale: SETTINGS.nodeScaleHover,
+                      boxShadow: `0 0 30px hsla(${orbit.hue}, 60%, 50%, 1.25)`
+                    }
+                  }}
+                  transition={{
+                    boxShadow: { duration: 3.0, repeat: Infinity, ease: 'easeInOut' },
+                    scale: easing.spring
+                  }}
+                  whileHover={{
+                    boxShadow: `0 0 25px hsla(${orbit.hue}, 60%, 50%, 1), inset 0 0 15px rgba(255, 255, 255, 0.2)`
+                  }}
+                >
+                  <Icon size={scaleFactor < 0.6 ? 14 : 18} className="drop-shadow-sm" />
+                </motion.div>
+              </motion.div>
+            </motion.div>
+          );
+        })}
+      </motion.div>
+
+      {/* Content section */}
+      <div className="absolute bottom-0 left-0 right-0 text-center pb-16 px-6">
+        <div className="max-w-4xl mx-auto">
+          <motion.h1 
+            className="text-4xl md:text-6xl font-bold text-white mb-6 bg-gradient-to-r from-blue-400 via-purple-400 to-blue-400 bg-clip-text text-transparent"
+            initial={{ opacity: 0, y: 30 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 1, delay: 0.5, ease: easing.soft }}
+          >
+
+          </motion.h1>
+          <motion.p 
+            className="text-lg md:text-xl text-gray-300 max-w-2xl mx-auto leading-relaxed"
+            style={{ maxWidth: '60ch' }}
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 1, delay: 0.8, ease: easing.soft }}
+          >
+           
+          </motion.p>
+          <motion.div
+            className="mt-8 space-x-4"
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 1, delay: 1.1, ease: easing.soft }}
+          >
+            
+          </motion.div>
+        </div>
+      </div>
+    </div>
+  );
+};
 
 const LandingPage: React.FC = () => {
   const heroRef = useRef<HTMLDivElement>(null);
@@ -28,7 +354,6 @@ const LandingPage: React.FC = () => {
   const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 });
   const [isHovering, setIsHovering] = useState(false);
 
-  // Track mouse movement for 3D effects
   useEffect(() => {
     const handleMouseMove = (e: MouseEvent) => {
       setMousePosition({ x: e.clientX, y: e.clientY });
@@ -38,8 +363,9 @@ const LandingPage: React.FC = () => {
     return () => window.removeEventListener('mousemove', handleMouseMove);
   }, []);
 
-  // 3D transform based on mouse position
   const get3DTransform = (intensity: number = 1) => {
+    if (typeof window === 'undefined') return 'none';
+    
     const x = (mousePosition.x / window.innerWidth - 0.5) * intensity * 20;
     const y = (mousePosition.y / window.innerHeight - 0.5) * intensity * 20;
     return `perspective(1000px) rotateX(${-y}deg) rotateY(${x}deg)`;
@@ -145,45 +471,52 @@ const LandingPage: React.FC = () => {
       </div>
 
       {/* Navigation */}
-      <nav className="fixed top-0 w-full z-50 bg-white/80 backdrop-blur-xl border-b border-gray-100">
-        <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
-          <div className="flex items-center space-x-3">
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-r from-pink-500 via-purple-500 to-blue-500 flex items-center justify-center shadow-lg">
-              <Bot className="w-6 h-6 text-white" />
+      <nav className="fixed top-0 w-full z-50 bg-white/5 dark:bg-black/5 backdrop-blur-3xl border-b border-white/10 dark:border-gray-800/30 shadow-lg shadow-black/5">
+        <div className="max-w-7xl mx-auto px-6 py-3 flex items-center justify-between">
+          <div className="flex items-center space-x-3 group">
+            <div className="w-9 h-9 rounded-xl bg-gradient-to-r from-pink-500 via-purple-500 to-blue-500 flex items-center justify-center shadow-lg group-hover:scale-105 transition-transform">
+              <Bot className="w-5 h-5 text-white" />
             </div>
-            <span className="text-2xl font-bold bg-gradient-to-r from-pink-600 to-purple-600 bg-clip-text text-transparent">
+            <span className="text-xl font-bold bg-gradient-to-r from-pink-600 to-purple-600 bg-clip-text text-transparent">
               Autofy
             </span>
           </div>
           
-          <div className="hidden md:flex items-center space-x-8">
-            <a href="#product" className="text-gray-600 hover:text-gray-900 transition-colors font-medium">Product</a>
-            <a href="#solutions" className="text-gray-600 hover:text-gray-900 transition-colors font-medium">Solutions</a>
-            <a href="#pricing" className="text-gray-600 hover:text-gray-900 transition-colors font-medium">Pricing</a>
-            <a href="#docs" className="text-gray-600 hover:text-gray-900 transition-colors font-medium">Docs</a>
-            <a href="#community" className="text-gray-600 hover:text-gray-900 transition-colors font-medium">Community</a>
+          <div className="hidden md:flex items-center space-x-6">
+            <a href="#product" className="text-white/90 hover:text-white font-medium px-3 py-2 rounded-lg hover:bg-white/5 transition-all">
+              Product
+            </a>
+            <a href="#solutions" className="text-white/90 hover:text-white font-medium px-3 py-2 rounded-lg hover:bg-white/5 transition-all">
+              Solutions
+            </a>
+            <a href="#pricing" className="text-white/90 hover:text-white font-medium px-3 py-2 rounded-lg hover:bg-white/5 transition-all">
+              Pricing
+            </a>
+            <a href="#docs" className="text-white/90 hover:text-white font-medium px-3 py-2 rounded-lg hover:bg-white/5 transition-all">
+              Docs
+            </a>
           </div>
 
-          <div className="flex items-center space-x-4">
+          <div className="flex items-center space-x-3">
             <Link 
-              to="/login" 
-              className="text-gray-600 hover:text-gray-900 transition-colors font-medium"
+              to="/auth" 
+              className="text-white/80 hover:text-white font-medium px-4 py-2 rounded-lg hover:bg-white/5 transition-all"
             >
               Sign In
             </Link>
             <Link 
-              to="/signup" 
-              className="bg-gradient-to-r from-pink-500 to-purple-600 text-white px-6 py-2.5 rounded-xl font-semibold hover:shadow-lg hover:scale-105 transition-all duration-300"
+              to="/auth" 
+              className="relative overflow-hidden bg-gradient-to-r from-pink-500 to-purple-600 text-white px-5 py-2 rounded-lg font-medium hover:shadow-xl transition-all hover:scale-[1.02] group"
             >
-              Sign Up
+              <span className="relative z-10">Sign Up</span>
+              <span className="absolute inset-0 bg-gradient-to-r from-pink-600 to-purple-700 opacity-0 group-hover:opacity-100 transition-opacity"></span>
             </Link>
           </div>
         </div>
       </nav>
 
-      {/* Hero Section with Background Video */}
+      {/* Hero Section with Background Video - FIXED RESPONSIVE */}
       <section ref={heroRef} className="relative min-h-screen flex items-center justify-center overflow-hidden">
-        {/* Background Video */}
         <div className="absolute inset-0 z-0">
           <video
             ref={videoRef}
@@ -193,16 +526,50 @@ const LandingPage: React.FC = () => {
             loop
             playsInline
           >
-            {/* For your actual implementation, use this path: */}
             <source src="/background-video.mp4" type="video/mp4" />
-            {/* Placeholder for demo - replace with your actual video */}
             <div className="w-full h-full bg-gradient-to-br from-pink-100 via-purple-50 to-blue-100"></div>
           </video>
-          {/* Video overlay for better text readability */}
+          
+          {/* Enhanced Responsive CSS - FIXED STYLES */}
+          <style jsx>{`
+            @media (max-width: 768px) {
+              video {
+                object-fit: cover !important;
+                height: 100vh !important;
+                background: #0f0f1a;
+              }
+              
+              .hero-text {
+                left: 0 !important;
+                top: -15% !important;
+                transform: translateY(-40%) !important; /
+                text-align: center !important;
+                padding: 0 1rem !important;
+                max-width: 100% !important;
+              }
+              
+              .hero-text h1 {
+              
+                font-size: 2.2rem !important;
+                line-height: 1.2 !important;
+              }
+              
+              .hero-text p {
+                font-size: 1rem !important;
+              }
+              
+              .hero-buttons {
+                flex-direction: column !important;
+                gap: 1rem !important;
+                align-items: center !important;
+                margin-top: 1.5rem !important;
+              }
+            }
+          `}</style>
+          
           <div className="absolute inset-0 bg-gradient-to-b from-black/20 via-black/10 to-black/30"></div>
         </div>
 
-        {/* Animated particles */}
         <div className="absolute inset-0 z-10">
           {[...Array(20)].map((_, i) => (
             <div
@@ -218,41 +585,42 @@ const LandingPage: React.FC = () => {
           ))}
         </div>
 
-{/* Hero Content */}
-<div className="relative -top-16 left-[-200px] z-20 text-left px-6 max-w-4xl">
-  <div
-    className="transform transition-all duration-1000"
-    style={{ transform: get3DTransform(0.1) }}
-  >
-    <h1 className="text-3xl md:text-5xl font-bold mb-6 text-white drop-shadow-2xl">
-      Automate Tasks{' '}
-      <span className="bg-gradient-to-r from-pink-400 via-purple-400 to-blue-400 bg-clip-text text-transparent text-4xl md:text-5xl font-extrabold">
-        Effortlessly
-      </span>
-    </h1>
-    <p className="text-2xl md:text-2xl text-white/90 mb-6 max-w-2xl leading-relaxed drop-shadow-lg">
-      Transform your workflows with intelligent automation. Connect apps,
-      eliminate repetitive tasks, and focus on what truly matters.
-    </p>
-    <div className="flex flex-col sm:flex-row items-start sm:space-x-4">
-      <Link
-        to="/signup"
-        className="group bg-gradient-to-r from-pink-500 to-purple-600 text-white/80 px-6 py-3 rounded-xl font-semibold text-base hover:shadow-xl hover:scale-105 transition-all duration-300 flex items-center space-x-2"
-        onMouseEnter={() => setIsHovering(true)}
-        onMouseLeave={() => setIsHovering(false)}
-      >
-        <span>Get Started Free</span>
-        <ArrowRight
-          className={`w-5 h-5 transition-transform duration-300 ${
-            isHovering ? 'translate-x-1' : ''
-          }`}
-        />
-      </Link>
+        {/* FIXED HERO TEXT CONTAINER */}
+        <div className="relative z-20 px-6 max-w-2xl text-center md:text-left md:max-w-4xl md:-top-16 md:left-[-200px] hero-text">
+          <div
+            className="transform transition-all duration-1000"
+            style={{ transform: get3DTransform(0.1) }}
+          >
+            <h1 className="text-xl md:text-7xl font-extrabold leading-tight text-white">
+              Automate Tasks{' '}
+              <span className="bg-gradient-to-r from-pink-400 via-purple-400 to-blue-400 bg-clip-text text-transparent">
+                Effortlessly
+              </span>
+            </h1>
+            <p className="text-xl md:text-xl text-white/90 mb-6 max-w-2xl leading-relaxed drop-shadow-lg mt-4">
+              Transform your workflows with intelligent automation.Connect apps,
+              eliminate repetitive tasks, and focus on what truly matters.
+            </p>
+            
+            {/* FIXED BUTTON CONTAINER */}
+            <div className="flex flex-col sm:flex-row items-center sm:space-x-4 space-y-3 sm:space-y-0 mt-6 hero-buttons">
+              <Link
+                to="/auth"
+                className="group bg-gradient-to-r from-pink-500 to-purple-600 text-white px-6 py-3 rounded-xl font-semibold text-base hover:shadow-xl hover:scale-105 transition-all duration-300 flex items-center space-x-2"
+                onMouseEnter={() => setIsHovering(true)}
+                onMouseLeave={() => setIsHovering(false)}
+              >
+                <span>Get Started Free</span>
+                <ArrowRight
+                  className={`w-5 h-5 transition-transform duration-300 ${
+                    isHovering ? 'translate-x-1' : ''
+                  }`}
+                />
+              </Link>
             </div>
           </div>
         </div>
 
-        {/* Scroll indicator */}
         <div className="absolute bottom-8 left-1/2 transform -translate-x-1/2 z-20">
           <div className="w-6 h-10 border-2 border-white/60 rounded-full flex justify-center">
             <div className="w-1 h-3 bg-white/80 rounded-full mt-2 animate-bounce"></div>
@@ -283,7 +651,9 @@ const LandingPage: React.FC = () => {
                   key={index} 
                   className="group bg-white p-8 rounded-3xl shadow-lg hover:shadow-2xl transition-all duration-500 border border-gray-100 hover:border-gray-200 cursor-pointer"
                   style={{ 
-                    transform: `perspective(1000px) rotateX(${(mousePosition.y / window.innerHeight - 0.5) * -5}deg) rotateY(${(mousePosition.x / window.innerWidth - 0.5) * 5}deg)`,
+                    transform: typeof window !== 'undefined' ? 
+                      `perspective(1000px) rotateX(${(mousePosition.y / window.innerHeight - 0.5) * -5}deg) rotateY(${(mousePosition.x / window.innerWidth - 0.5) * 5}deg)` : 
+                      'none',
                     transformStyle: 'preserve-3d'
                   }}
                 >
@@ -364,7 +734,7 @@ const LandingPage: React.FC = () => {
         </div>
       </section>
 
-      {/* Final CTA */}
+       {/* Final CTA */}
       <section className="py-24 px-6 bg-gradient-to-r from-pink-600 via-purple-600 to-blue-600">
         <div className="max-w-4xl mx-auto text-center text-white">
           <h2 className="text-5xl font-bold mb-6">Ready to Automate?</h2>
@@ -381,7 +751,8 @@ const LandingPage: React.FC = () => {
         </div>
       </section>
 
-      {/* Footer */}
+
+{/* Footer */}
       <footer className="bg-gray-900 text-white py-16 px-6">
         <div className="max-w-7xl mx-auto">
           <div className="grid md:grid-cols-4 gap-8 mb-12">
@@ -451,6 +822,21 @@ const LandingPage: React.FC = () => {
       </footer>
 
       <style jsx>{`
+
+//       @keyframes floatGlow {
+//   0%, 100% { 
+//     transform: translateY(0px); 
+//     text-shadow: 0 0 20px rgba(255,255,255,0.3);
+//   }
+//   50% { 
+//     transform: translateY(-8px); 
+//     text-shadow: 0 0 30px rgba(255,255,255,0.6);
+//   }
+// }
+
+// .hero-text h1 {
+//   animation: floatGlow 2.5s ease-in-out infinite;
+// }
         @keyframes scroll {
           0% {
             transform: translateX(0);
