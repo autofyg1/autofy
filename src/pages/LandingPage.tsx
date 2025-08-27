@@ -150,45 +150,37 @@ const LandingPage: React.FC = () => {
       </div>
 
       {/* Navigation */}
-      <nav className="fixed top-0 w-full z-50 bg-white/5 dark:bg-black/5 backdrop-blur-3xl border-b border-white/10 dark:border-gray-800/30 shadow-lg shadow-black/5">
-        <div className="max-w-7xl mx-auto px-6 py-3 flex items-center justify-between">
-          <div className="flex items-center space-x-3 group">
-            <div className="w-9 h-9 rounded-xl bg-gradient-to-r from-pink-500 via-purple-500 to-blue-500 flex items-center justify-center shadow-lg group-hover:scale-105 transition-transform">
-              <Bot className="w-5 h-5 text-white" />
+      <nav className="fixed top-0 w-full z-50 bg-white/80 backdrop-blur-xl border-b border-gray-100">
+        <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
+          <div className="flex items-center space-x-3">
+            <div className="w-10 h-10 rounded-xl bg-gradient-to-r from-pink-500 via-purple-500 to-blue-500 flex items-center justify-center shadow-lg">
+              <Bot className="w-6 h-6 text-white" />
             </div>
-            <span className="text-xl font-bold bg-gradient-to-r from-pink-600 to-purple-600 bg-clip-text text-transparent">
+            <span className="text-2xl font-bold bg-gradient-to-r from-pink-600 to-purple-600 bg-clip-text text-transparent">
               Autofy
             </span>
           </div>
           
-          <div className="hidden md:flex items-center space-x-6">
-            <a href="#product" className="text-white/90 hover:text-white font-medium px-3 py-2 rounded-lg hover:bg-white/5 transition-all">
-              Product
-            </a>
-            <a href="#solutions" className="text-white/90 hover:text-white font-medium px-3 py-2 rounded-lg hover:bg-white/5 transition-all">
-              Solutions
-            </a>
-            <a href="#pricing" className="text-white/90 hover:text-white font-medium px-3 py-2 rounded-lg hover:bg-white/5 transition-all">
-              Pricing
-            </a>
-            <a href="#docs" className="text-white/90 hover:text-white font-medium px-3 py-2 rounded-lg hover:bg-white/5 transition-all">
-              Docs
-            </a>
+          <div className="hidden md:flex items-center space-x-8">
+            <a href="#product" className="text-gray-600 hover:text-gray-900 transition-colors font-medium">Product</a>
+            <a href="#solutions" className="text-gray-600 hover:text-gray-900 transition-colors font-medium">Solutions</a>
+            <a href="#pricing" className="text-gray-600 hover:text-gray-900 transition-colors font-medium">Pricing</a>
+            <a href="#docs" className="text-gray-600 hover:text-gray-900 transition-colors font-medium">Docs</a>
+            <a href="#community" className="text-gray-600 hover:text-gray-900 transition-colors font-medium">Community</a>
           </div>
 
-          <div className="flex items-center space-x-3">
+          <div className="flex items-center space-x-4">
             <Link 
-              to="/auth" 
-              className="text-white/80 hover:text-white font-medium px-4 py-2 rounded-lg hover:bg-white/5 transition-all"
+              to="/login" 
+              className="text-gray-600 hover:text-gray-900 transition-colors font-medium"
             >
               Sign In
             </Link>
             <Link 
-              to="/auth" 
-              className="relative overflow-hidden bg-gradient-to-r from-pink-500 to-purple-600 text-white px-5 py-2 rounded-lg font-medium hover:shadow-xl transition-all hover:scale-[1.02] group"
+              to="/signup" 
+              className="bg-gradient-to-r from-pink-500 to-purple-600 text-white px-6 py-2.5 rounded-xl font-semibold hover:shadow-lg hover:scale-105 transition-all duration-300"
             >
-              <span className="relative z-10">Sign Up</span>
-              <span className="absolute inset-0 bg-gradient-to-r from-pink-600 to-purple-700 opacity-0 group-hover:opacity-100 transition-opacity"></span>
+              Sign Up
             </Link>
           </div>
         </div>
