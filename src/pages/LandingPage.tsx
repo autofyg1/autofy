@@ -430,13 +430,13 @@ const LandingPage: React.FC = () => {
 
           <div className="flex items-center space-x-4">
             <Link 
-              to="/auth" 
+              to="/login" 
               className="text-gray-600 hover:text-gray-900 transition-colors font-medium"
             >
               Sign In
             </Link>
             <Link 
-              to="/auth" 
+              to="/signup" 
               className="bg-gradient-to-r from-pink-500 to-purple-600 text-white px-6 py-2.5 rounded-xl font-semibold hover:shadow-lg hover:scale-105 transition-all duration-300"
             >
               Sign Up
@@ -534,7 +534,7 @@ const LandingPage: React.FC = () => {
             {/* FIXED BUTTON CONTAINER */}
             <div className="flex flex-col sm:flex-row items-center sm:space-x-4 space-y-3 sm:space-y-0 mt-6 hero-buttons">
               <Link
-                to="/auth"
+                to="/signup"
                 className="group bg-gradient-to-r from-pink-500 to-purple-600 text-white px-6 py-3 rounded-xl font-semibold text-base hover:shadow-xl hover:scale-105 transition-all duration-300 flex items-center space-x-2"
                 onMouseEnter={() => setIsHovering(true)}
                 onMouseLeave={() => setIsHovering(false)}
@@ -676,7 +676,7 @@ const LandingPage: React.FC = () => {
   <span className="font-medium text-purple-600"> Start free, no credit card required.</span>
 </p>
               <Link 
-                to="/auth"
+                to="/signup"
                   className="inline-flex items-center space-x-3 bg-gradient-to-r from-pink-500 to-purple-600 text-white px-10 py-4 rounded-2xl font-semibold text-lg shadow-md hover:bg-indigo-700 hover:shadow-xl hover:scale-105 transition-all duration-300"
               >
                 <span>Start Automating Now</span>
