@@ -11,7 +11,7 @@ const Navbar: React.FC = () => {
 
   useEffect(() => {
     if (navRef.current) {
-      gsap.fromTo(navRef.current, 
+      gsap.fromTo(navRef.current,
         { y: -100, opacity: 0 },
         { y: 0, opacity: 1, duration: 0.8, ease: "power2.out" }
       );
@@ -37,27 +37,25 @@ const Navbar: React.FC = () => {
         </Link>
 
         <div className="flex items-center space-x-6">
-          <Link 
-            to="/dashboard" 
-            className={`px-4 py-2 rounded-lg transition-all duration-300 ${
-              isActive('/dashboard') 
-                ? 'bg-blue-600 text-white' 
+          <Link
+            to="/dashboard"
+            className={`px-4 py-2 rounded-lg transition-all duration-300 ${isActive('/dashboard')
+                ? 'bg-blue-600 text-white'
                 : 'text-gray-300 hover:text-white hover:bg-gray-700'
-            }`}
+              }`}
           >
             Dashboard
           </Link>
-          <Link 
-            to="/integrations" 
-            className={`px-4 py-2 rounded-lg transition-all duration-300 ${
-              isActive('/integrations') 
-                ? 'bg-blue-600 text-white' 
+          <Link
+            to="/integrations"
+            className={`px-4 py-2 rounded-lg transition-all duration-300 ${isActive('/integrations')
+                ? 'bg-blue-600 text-white'
                 : 'text-gray-300 hover:text-white hover:bg-gray-700'
-            }`}
+              }`}
           >
             Integrations
           </Link>
-          
+
           <div className="flex items-center space-x-3 ml-6 pl-6 border-l border-gray-700">
             {user && (
               <div className="text-sm text-gray-300">
@@ -70,7 +68,7 @@ const Navbar: React.FC = () => {
             <button className="p-2 rounded-full hover:bg-gray-700 transition-colors duration-300">
               <User className="w-5 h-5" />
             </button>
-            <button 
+            <button
               onClick={handleSignOut}
               className="p-2 rounded-full hover:bg-gray-700 transition-colors duration-300 text-red-400"
               title="Sign Out"

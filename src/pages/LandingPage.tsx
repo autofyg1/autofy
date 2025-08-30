@@ -21,6 +21,7 @@ import {
   Database,
   Globe
 } from 'lucide-react';
+import Interactive3DModel from '../components/Interactive3DModel';
 
 const LandingPage: React.FC = () => {
   const heroRef = useRef<HTMLDivElement>(null);
@@ -260,9 +261,14 @@ const LandingPage: React.FC = () => {
         </div>
       </section>
 
-      {/* Features Section */}
-      <section className="py-24 px-6 bg-gradient-to-b from-gray-50 to-white">
-        <div className="max-w-7xl mx-auto">
+      {/* Features Section with 3D Model */}
+      <section className="py-24 px-6 bg-gradient-to-b from-gray-50 to-white relative overflow-hidden">
+        {/* Background gradient effects */}
+        <div className="absolute inset-0 bg-gradient-to-r from-pink-50/50 via-transparent to-purple-50/50"></div>
+        <div className="absolute top-0 left-1/4 w-96 h-96 bg-gradient-to-br from-purple-200/20 to-pink-200/20 rounded-full blur-3xl"></div>
+        <div className="absolute bottom-0 right-1/4 w-96 h-96 bg-gradient-to-br from-blue-200/20 to-cyan-200/20 rounded-full blur-3xl"></div>
+        
+        <div className="max-w-7xl mx-auto relative z-10">
           <div className="text-center mb-20">
             <h2 className="text-5xl font-bold mb-6 text-gray-900">
               Why Choose{' '}
@@ -275,26 +281,112 @@ const LandingPage: React.FC = () => {
             </p>
           </div>
 
-          <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-8">
-            {features.map((feature, index) => {
-              const Icon = feature.icon;
-              return (
-                <div 
-                  key={index} 
-                  className="group bg-white p-8 rounded-3xl shadow-lg hover:shadow-2xl transition-all duration-500 border border-gray-100 hover:border-gray-200 cursor-pointer"
-                  style={{ 
-                    transform: `perspective(1000px) rotateX(${(mousePosition.y / window.innerHeight - 0.5) * -5}deg) rotateY(${(mousePosition.x / window.innerWidth - 0.5) * 5}deg)`,
-                    transformStyle: 'preserve-3d'
-                  }}
-                >
-                  <div className={`w-16 h-16 rounded-2xl bg-gradient-to-r ${feature.color} flex items-center justify-center mb-6 group-hover:scale-110 transition-transform duration-300 shadow-lg`}>
-                    <Icon className="w-8 h-8 text-white" />
+          {/* Enhanced layout with 3D Model */}
+          <div className="grid lg:grid-cols-3 gap-12 items-center">
+            {/* Features Grid - Left Side */}
+            <div className="lg:col-span-2 order-2 lg:order-1">
+              <div className="grid md:grid-cols-2 gap-8">
+                {features.map((feature, index) => {
+                  const Icon = feature.icon;
+                  return (
+                    <div 
+                      key={index} 
+                      className="group bg-white p-8 rounded-3xl shadow-lg hover:shadow-2xl transition-all duration-500 border border-gray-100 hover:border-gray-200 cursor-pointer backdrop-blur-sm"
+                      style={{ 
+                        transform: `perspective(1000px) rotateX(${(mousePosition.y / window.innerHeight - 0.5) * -5}deg) rotateY(${(mousePosition.x / window.innerWidth - 0.5) * 5}deg)`,
+                        transformStyle: 'preserve-3d'
+                      }}
+                    >
+                      <div className={`w-16 h-16 rounded-2xl bg-gradient-to-r ${feature.color} flex items-center justify-center mb-6 group-hover:scale-110 transition-transform duration-300 shadow-lg`}>
+                        <Icon className="w-8 h-8 text-white" />
+                      </div>
+                      <h3 className="text-xl font-bold mb-4 text-gray-900">{feature.title}</h3>
+                      <p className="text-gray-600 leading-relaxed">{feature.description}</p>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* 3D Model Showcase - Right Side */}
+            <div className="lg:col-span-1 flex justify-center order-1 lg:order-2 mb-8 lg:mb-0">
+              <div className="relative w-full max-w-md">
+                {/* Glowing background effect */}
+                <div className="absolute inset-0 bg-gradient-to-br from-purple-400/20 to-pink-400/20 rounded-3xl blur-xl transform scale-110"></div>
+                
+                {/* 3D Model Container */}
+                <div className="relative bg-gradient-to-br from-white/80 to-gray-50/80 backdrop-blur-xl rounded-3xl border border-white/50 shadow-2xl overflow-hidden">
+                  <Interactive3DModel 
+                    className="w-full h-80 md:h-96 lg:h-[500px]" 
+                    modelPath="https://pmvzgrlufqgbxgpkaqke.supabase.co/storage/v1/object/public/model/model.glb"
+                  />
+                  
+                  {/* Overlay content */}
+                  <div className="absolute top-6 left-6 right-6">
+                    <div className="bg-white/90 backdrop-blur-sm rounded-2xl p-4 shadow-lg">
+                      <h3 className="text-lg font-bold text-gray-900 mb-2 flex items-center">
+                        <span className="w-3 h-3 bg-green-400 rounded-full mr-3 animate-pulse"></span>
+                        AI Model Interactive
+                      </h3>
+                      <p className="text-sm text-gray-600">
+                        Experience our AI-powered automation in 3D
+                      </p>
+                    </div>
                   </div>
-                  <h3 className="text-xl font-bold mb-4 text-gray-900">{feature.title}</h3>
-                  <p className="text-gray-600 leading-relaxed">{feature.description}</p>
+                  
+                  {/* Bottom stats */}
+                  <div className="absolute bottom-6 left-6 right-6">
+                    <div className="grid grid-cols-3 gap-2">
+                      <div className="bg-white/90 backdrop-blur-sm rounded-xl p-3 text-center">
+                        <div className="text-lg font-bold text-purple-600">99.9%</div>
+                        <div className="text-xs text-gray-600">Uptime</div>
+                      </div>
+                      <div className="bg-white/90 backdrop-blur-sm rounded-xl p-3 text-center">
+                        <div className="text-lg font-bold text-pink-600">50K+</div>
+                        <div className="text-xs text-gray-600">Users</div>
+                      </div>
+                      <div className="bg-white/90 backdrop-blur-sm rounded-xl p-3 text-center">
+                        <div className="text-lg font-bold text-blue-600">1M+</div>
+                        <div className="text-xs text-gray-600">Tasks</div>
+                      </div>
+                    </div>
+                  </div>
                 </div>
-              );
-            })}
+                
+                {/* Floating elements around the model */}
+                <div className="absolute -top-4 -left-4 w-8 h-8 bg-gradient-to-r from-pink-400 to-purple-500 rounded-full shadow-lg animate-bounce" style={{ animationDelay: '0s' }}></div>
+                <div className="absolute -top-2 -right-6 w-6 h-6 bg-gradient-to-r from-blue-400 to-cyan-500 rounded-full shadow-lg animate-bounce" style={{ animationDelay: '0.5s' }}></div>
+                <div className="absolute -bottom-4 -right-4 w-10 h-10 bg-gradient-to-r from-green-400 to-emerald-500 rounded-full shadow-lg animate-bounce" style={{ animationDelay: '1s' }}></div>
+                <div className="absolute -bottom-2 -left-6 w-7 h-7 bg-gradient-to-r from-yellow-400 to-orange-500 rounded-full shadow-lg animate-bounce" style={{ animationDelay: '1.5s' }}></div>
+              </div>
+            </div>
+          </div>
+          
+          {/* Additional feature highlights */}
+          <div className="mt-20 text-center">
+            <div className="grid md:grid-cols-3 gap-8">
+              <div className="group cursor-pointer">
+                <div className="bg-white/60 backdrop-blur-sm rounded-2xl p-6 border border-white/50 hover:shadow-xl transition-all duration-300">
+                  <div className="text-3xl mb-4">⚡</div>
+                  <h4 className="text-lg font-bold text-gray-900 mb-2">Lightning Fast</h4>
+                  <p className="text-gray-600 text-sm">Process millions of tasks with sub-second response times</p>
+                </div>
+              </div>
+              <div className="group cursor-pointer">
+                <div className="bg-white/60 backdrop-blur-sm rounded-2xl p-6 border border-white/50 hover:shadow-xl transition-all duration-300">
+                  <div className="text-3xl mb-4">🔒</div>
+                  <h4 className="text-lg font-bold text-gray-900 mb-2">Secure by Design</h4>
+                  <p className="text-gray-600 text-sm">Enterprise-grade security with end-to-end encryption</p>
+                </div>
+              </div>
+              <div className="group cursor-pointer">
+                <div className="bg-white/60 backdrop-blur-sm rounded-2xl p-6 border border-white/50 hover:shadow-xl transition-all duration-300">
+                  <div className="text-3xl mb-4">🚀</div>
+                  <h4 className="text-lg font-bold text-gray-900 mb-2">Scale Infinitely</h4>
+                  <p className="text-gray-600 text-sm">From startup to enterprise, grow without limits</p>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       </section>
