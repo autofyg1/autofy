@@ -3,24 +3,289 @@ import { Link } from 'react-router-dom';
 import { 
   Zap, 
   ArrowRight, 
-  Play, 
-  CheckCircle, 
   Star,
   Github,
   Twitter,
   Mail,
   Sparkles,
-  Clock,
-  Users,
   Bot,
   Workflow,
-  Shield,
-  Palette,
-  MousePointer,
-  Code,
-  Database,
-  Globe
+  Shield
 } from 'lucide-react';
+
+// Proper IconCloud Component with realistic 3D sphere rotation
+interface Icon {
+  x: number;
+  y: number;
+  z: number;
+  scale: number;
+  opacity: number;
+  id: number;
+}
+
+interface IconCloudProps {
+  images?: string[];
+}
+
+function easeOutCubic(t: number): number {
+  return 1 - Math.pow(1 - t, 3);
+}
+
+const IconCloud = ({ images }: IconCloudProps) => {
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const [iconPositions, setIconPositions] = useState<Icon[]>([]);
+  const [rotation, setRotation] = useState({ x: 0, y: 0 });
+  const [isDragging, setIsDragging] = useState(false);
+  const [lastMousePos, setLastMousePos] = useState({ x: 0, y: 0 });
+  const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
+  const [targetRotation, setTargetRotation] = useState<{
+    x: number;
+    y: number;
+    startX: number;
+    startY: number;
+    distance: number;
+    startTime: number;
+    duration: number;
+  } | null>(null);
+  const animationFrameRef = useRef<number>();
+  const rotationRef = useRef(rotation);
+  const iconCanvasesRef = useRef<HTMLCanvasElement[]>([]);
+  const imagesLoadedRef = useRef<boolean[]>([]);
+
+  // Create icon canvases once when images change
+  useEffect(() => {
+    if (!images) return;
+
+    imagesLoadedRef.current = new Array(images.length).fill(false);
+
+    const newIconCanvases = images.map((imageUrl, index) => {
+      const offscreen = document.createElement("canvas");
+      offscreen.width = 40;
+      offscreen.height = 40;
+      const offCtx = offscreen.getContext("2d");
+
+      if (offCtx) {
+        const img = new Image();
+        img.crossOrigin = "anonymous";
+        img.src = imageUrl;
+        img.onload = () => {
+          offCtx.clearRect(0, 0, offscreen.width, offscreen.height);
+
+          // Create circular clipping path
+          offCtx.beginPath();
+          offCtx.arc(20, 20, 20, 0, Math.PI * 2);
+          offCtx.closePath();
+          offCtx.clip();
+
+          // Draw the image
+          offCtx.drawImage(img, 0, 0, 40, 40);
+
+          imagesLoadedRef.current[index] = true;
+        };
+      }
+      return offscreen;
+    });
+
+    iconCanvasesRef.current = newIconCanvases;
+  }, [images]);
+
+  // Generate initial icon positions on a sphere using Fibonacci distribution
+  useEffect(() => {
+    if (!images) return;
+    
+    const newIcons: Icon[] = [];
+    const numIcons = images.length;
+
+    // Fibonacci sphere parameters for even distribution
+    const offset = 2 / numIcons;
+    const increment = Math.PI * (3 - Math.sqrt(5));
+
+    for (let i = 0; i < numIcons; i++) {
+      const y = i * offset - 1 + offset / 2;
+      const r = Math.sqrt(1 - y * y);
+      const phi = i * increment;
+
+      const x = Math.cos(phi) * r;
+      const z = Math.sin(phi) * r;
+
+      newIcons.push({
+        x: x * 140, // Increased radius for better visibility
+        y: y * 140,
+        z: z * 140,
+        scale: 1,
+        opacity: 1,
+        id: i,
+      });
+    }
+    setIconPositions(newIcons);
+  }, [images]);
+
+  // Handle mouse events
+  const handleMouseDown = (e: React.MouseEvent<HTMLCanvasElement>) => {
+    const rect = canvasRef.current?.getBoundingClientRect();
+    if (!rect || !canvasRef.current) return;
+
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
+
+    setIsDragging(true);
+    setLastMousePos({ x: e.clientX, y: e.clientY });
+  };
+
+  const handleMouseMove = (e: React.MouseEvent<HTMLCanvasElement>) => {
+    const rect = canvasRef.current?.getBoundingClientRect();
+    if (rect) {
+      const x = e.clientX - rect.left;
+      const y = e.clientY - rect.top;
+      setMousePos({ x, y });
+    }
+
+    if (isDragging) {
+      const deltaX = e.clientX - lastMousePos.x;
+      const deltaY = e.clientY - lastMousePos.y;
+
+      rotationRef.current = {
+        x: rotationRef.current.x + deltaY * 0.005,
+        y: rotationRef.current.y + deltaX * 0.005,
+      };
+
+      setLastMousePos({ x: e.clientX, y: e.clientY });
+    }
+  };
+
+  const handleMouseUp = () => {
+    setIsDragging(false);
+  };
+
+  // Animation and rendering
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    const ctx = canvas?.getContext("2d");
+    if (!canvas || !ctx) return;
+
+    const animate = () => {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+      const centerX = canvas.width / 2;
+      const centerY = canvas.height / 2;
+      const maxDistance = Math.sqrt(centerX * centerX + centerY * centerY);
+      const dx = mousePos.x - centerX;
+      const dy = mousePos.y - centerY;
+      const distance = Math.sqrt(dx * dx + dy * dy);
+      const speed = 0.002 + (distance / maxDistance) * 0.008;
+
+      // Auto-rotation when not dragging
+      if (!isDragging) {
+        rotationRef.current = {
+          x: rotationRef.current.x + (dy / canvas.height) * speed,
+          y: rotationRef.current.y + (dx / canvas.width) * speed + 0.005, // Constant slow rotation
+        };
+      }
+
+      // Sort icons by z-depth for proper rendering order
+      const sortedIcons = [...iconPositions].sort((a, b) => {
+        const cosX = Math.cos(rotationRef.current.x);
+        const sinX = Math.sin(rotationRef.current.x);
+        const cosY = Math.cos(rotationRef.current.y);
+        const sinY = Math.sin(rotationRef.current.y);
+
+        const aRotatedZ = a.x * sinY + a.z * cosY;
+        const aFinalZ = a.y * sinX + (a.x * cosY - a.z * sinY) * cosX;
+        
+        const bRotatedZ = b.x * sinY + b.z * cosY;
+        const bFinalZ = b.y * sinX + (b.x * cosY - b.z * sinY) * cosX;
+
+        return aFinalZ - bFinalZ; // Render back to front
+      });
+
+      sortedIcons.forEach((icon, index) => {
+        const cosX = Math.cos(rotationRef.current.x);
+        const sinX = Math.sin(rotationRef.current.x);
+        const cosY = Math.cos(rotationRef.current.y);
+        const sinY = Math.sin(rotationRef.current.y);
+
+        // 3D rotation transformations
+        const rotatedX = icon.x * cosY - icon.z * sinY;
+        const rotatedZ = icon.x * sinY + icon.z * cosY;
+        const rotatedY = icon.y * cosX + rotatedZ * sinX;
+        const finalZ = icon.y * sinX + rotatedZ * cosX;
+
+        // Perspective projection
+        const scale = Math.max(0.3, Math.min(1.2, (finalZ + 200) / 300));
+        const opacity = Math.max(0.2, Math.min(1, (finalZ + 150) / 200));
+
+        ctx.save();
+        ctx.translate(
+          canvas.width / 2 + rotatedX,
+          canvas.height / 2 + rotatedY,
+        );
+        ctx.scale(scale, scale);
+        ctx.globalAlpha = opacity;
+
+        // Render icon if loaded
+        if (iconCanvasesRef.current[icon.id] && imagesLoadedRef.current[icon.id]) {
+          ctx.drawImage(iconCanvasesRef.current[icon.id], -20, -20, 40, 40);
+        }
+
+        ctx.restore();
+      });
+
+      animationFrameRef.current = requestAnimationFrame(animate);
+    };
+
+    animate();
+
+    return () => {
+      if (animationFrameRef.current) {
+        cancelAnimationFrame(animationFrameRef.current);
+      }
+    };
+  }, [iconPositions, isDragging, mousePos, images]);
+
+  return (
+    <canvas
+      ref={canvasRef}
+      width={500}
+      height={500}
+      onMouseDown={handleMouseDown}
+      onMouseMove={handleMouseMove}
+      onMouseUp={handleMouseUp}
+      onMouseLeave={handleMouseUp}
+      className="rounded-lg cursor-grab active:cursor-grabbing"
+      aria-label="Interactive 3D Icon Cloud"
+      role="img"
+    />
+  );
+};
+
+// IconCloudDemo Component
+const IconCloudDemo = () => {
+  const slugs = [
+    "github",
+    "figma", 
+    "reddit",
+    "linkedin",
+    "openai",
+    "gmail",
+    "notion",
+    "x",
+    "slack",
+    "googlecalendar",
+    "telegram",
+    "googledrive",
+    "googlesheets",
+    "discord",
+    "trello",
+  ];
+
+  const images = slugs.map((slug) => `https://cdn.simpleicons.org/${slug}/${slug}.svg`);
+
+  return (
+    <div className="relative flex size-full items-center justify-center overflow-hidden h-[500px]">
+      <IconCloud images={images} />
+    </div>
+  );
+};
 import Interactive3DModel from '../components/Interactive3DModel';
 
 const LandingPage: React.FC = () => {
@@ -29,7 +294,6 @@ const LandingPage: React.FC = () => {
   const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 });
   const [isHovering, setIsHovering] = useState(false);
 
-  // Track mouse movement for 3D effects
   useEffect(() => {
     const handleMouseMove = (e: MouseEvent) => {
       setMousePosition({ x: e.clientX, y: e.clientY });
@@ -39,8 +303,9 @@ const LandingPage: React.FC = () => {
     return () => window.removeEventListener('mousemove', handleMouseMove);
   }, []);
 
-  // 3D transform based on mouse position
   const get3DTransform = (intensity: number = 1) => {
+    if (typeof window === 'undefined') return 'none';
+    
     const x = (mousePosition.x / window.innerWidth - 0.5) * intensity * 20;
     const y = (mousePosition.y / window.innerHeight - 0.5) * intensity * 20;
     return `perspective(1000px) rotateX(${-y}deg) rotateY(${x}deg)`;
@@ -182,9 +447,8 @@ const LandingPage: React.FC = () => {
         </div>
       </nav>
 
-      {/* Hero Section with Background Video */}
+      {/* Hero Section with Background Video - FIXED RESPONSIVE */}
       <section ref={heroRef} className="relative min-h-screen flex items-center justify-center overflow-hidden">
-        {/* Background Video */}
         <div className="absolute inset-0 z-0">
           <video
             ref={videoRef}
@@ -194,16 +458,49 @@ const LandingPage: React.FC = () => {
             loop
             playsInline
           >
-            {/* For your actual implementation, use this path: */}
             <source src="https://pmvzgrlufqgbxgpkaqke.supabase.co/storage/v1/object/public/video/background-video.mp4" type="video/mp4" />
-            {/* Placeholder for demo - replace with your actual video */}
             <div className="w-full h-full bg-gradient-to-br from-pink-100 via-purple-50 to-blue-100"></div>
           </video>
-          {/* Video overlay for better text readability */}
+          
+          {/* Enhanced Responsive CSS - FIXED STYLES */}
+          <style jsx>{`
+            @media (max-width: 768px) {
+              video {
+                object-fit: cover !important;
+                height: 100vh !important;
+                background: #0f0f1a;
+              }
+              
+              .hero-text {
+                left: 0 !important;
+                top: -15% !important;
+                transform: translateY(-40%) !important;
+                text-align: center !important;
+                padding: 0 1rem !important;
+                max-width: 100% !important;
+              }
+              
+              .hero-text h1 {
+                font-size: 2.2rem !important;
+                line-height: 1.2 !important;
+              }
+              
+              .hero-text p {
+                font-size: 1rem !important;
+              }
+              
+              .hero-buttons {
+                flex-direction: column !important;
+                gap: 1rem !important;
+                align-items: center !important;
+                margin-top: 1.5rem !important;
+              }
+            }
+          `}</style>
+          
           <div className="absolute inset-0 bg-gradient-to-b from-black/20 via-black/10 to-black/30"></div>
         </div>
 
-        {/* Animated particles */}
         <div className="absolute inset-0 z-10">
           {[...Array(20)].map((_, i) => (
             <div
@@ -219,41 +516,42 @@ const LandingPage: React.FC = () => {
           ))}
         </div>
 
-{/* Hero Content */}
-<div className="relative -top-16 left-[-200px] z-20 text-left px-6 max-w-4xl">
-  <div
-    className="transform transition-all duration-1000"
-    style={{ transform: get3DTransform(0.1) }}
-  >
-    <h1 className="text-3xl md:text-5xl font-bold mb-6 text-white drop-shadow-2xl">
-      Automate Tasks{' '}
-      <span className="bg-gradient-to-r from-pink-400 via-purple-400 to-blue-400 bg-clip-text text-transparent text-4xl md:text-5xl font-extrabold">
-        Effortlessly
-      </span>
-    </h1>
-    <p className="text-2xl md:text-2xl text-white/90 mb-6 max-w-2xl leading-relaxed drop-shadow-lg">
-      Transform your workflows with intelligent automation. Connect apps,
-      eliminate repetitive tasks, and focus on what truly matters.
-    </p>
-    <div className="flex flex-col sm:flex-row items-start sm:space-x-4">
-      <Link
-        to="/signup"
-        className="group bg-gradient-to-r from-pink-500 to-purple-600 text-white/80 px-6 py-3 rounded-xl font-semibold text-base hover:shadow-xl hover:scale-105 transition-all duration-300 flex items-center space-x-2"
-        onMouseEnter={() => setIsHovering(true)}
-        onMouseLeave={() => setIsHovering(false)}
-      >
-        <span>Get Started Free</span>
-        <ArrowRight
-          className={`w-5 h-5 transition-transform duration-300 ${
-            isHovering ? 'translate-x-1' : ''
-          }`}
-        />
-      </Link>
+        {/* FIXED HERO TEXT CONTAINER */}
+        <div className="relative z-20 px-6 max-w-2xl text-center md:text-left md:max-w-4xl md:-top-16 md:left-[-200px] hero-text">
+          <div
+            className="transform transition-all duration-1000"
+            style={{ transform: get3DTransform(0.1) }}
+          >
+            <h1 className="text-4xl md:text-7xl font-extrabold leading-tight text-white">
+              Automate Tasks{' '}
+              <span className="bg-gradient-to-r from-pink-400 via-purple-400 to-blue-400 bg-clip-text text-transparent">
+                Effortlessly
+              </span>
+            </h1>
+            <p className="text-xl md:text-xl text-white/90 mb-6 max-w-2xl leading-relaxed drop-shadow-lg mt-4">
+              Transform your workflows with intelligent automation. Connect apps,
+              eliminate repetitive tasks, and focus on what truly matters.
+            </p>
+            
+            {/* FIXED BUTTON CONTAINER */}
+            <div className="flex flex-col sm:flex-row items-center sm:space-x-4 space-y-3 sm:space-y-0 mt-6 hero-buttons">
+              <Link
+                to="/signup"
+                className="group bg-gradient-to-r from-pink-500 to-purple-600 text-white px-6 py-3 rounded-xl font-semibold text-base hover:shadow-xl hover:scale-105 transition-all duration-300 flex items-center space-x-2"
+                onMouseEnter={() => setIsHovering(true)}
+                onMouseLeave={() => setIsHovering(false)}
+              >
+                <span>Get Started Free</span>
+                <ArrowRight
+                  className={`w-5 h-5 transition-transform duration-300 ${
+                    isHovering ? 'translate-x-1' : ''
+                  }`}
+                />
+              </Link>
             </div>
           </div>
         </div>
 
-        {/* Scroll indicator */}
         <div className="absolute bottom-8 left-1/2 transform -translate-x-1/2 z-20">
           <div className="w-6 h-10 border-2 border-white/60 rounded-full flex justify-center">
             <div className="w-1 h-3 bg-white/80 rounded-full mt-2 animate-bounce"></div>
@@ -281,6 +579,28 @@ const LandingPage: React.FC = () => {
             </p>
           </div>
 
+          <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-8">
+            {features.map((feature, index) => {
+              const Icon = feature.icon;
+              return (
+                <div 
+                  key={index} 
+                  className="group bg-white p-8 rounded-3xl shadow-lg hover:shadow-2xl transition-all duration-500 border border-gray-100 hover:border-gray-200 cursor-pointer"
+                  style={{ 
+                    transform: typeof window !== 'undefined' ? 
+                      `perspective(1000px) rotateX(${(mousePosition.y / window.innerHeight - 0.5) * -5}deg) rotateY(${(mousePosition.x / window.innerWidth - 0.5) * 5}deg)` : 
+                      'none',
+                    transformStyle: 'preserve-3d'
+                  }}
+                >
+                  <div className={`w-16 h-16 rounded-2xl bg-gradient-to-r ${feature.color} flex items-center justify-center mb-6 group-hover:scale-110 transition-transform duration-300 shadow-lg`}>
+                    <Icon className="w-8 h-8 text-white" />
+                  </div>
+                  <h3 className="text-xl font-bold mb-4 text-gray-900">{feature.title}</h3>
+                  <p className="text-gray-600 leading-relaxed">{feature.description}</p>
+                </div>
+              );
+            })}
           {/* Enhanced layout with 3D Model */}
           <div className="grid lg:grid-cols-3 gap-12 items-center">
             {/* Features Grid - Left Side */}
@@ -455,23 +775,54 @@ const LandingPage: React.FC = () => {
           </div>
         </div>
       </section>
+{/* Final CTA with IconCloud */}
+<section className="py-24 px-6 bg-gradient-to-r from-gray-100 via-gray-200 to-gray-300">
+  <div className="max-w-7xl mx-auto">
+    <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
+      
+      {/* Left side - Text content */}
+      <div className="text-center lg:text-left">
+        <h2
+          className="
+            text-3xl
+            sm:text-4xl
+            md:text-5xl
+            lg:text-6xl
+            xl:text-5xl
+            text-gray-900 
+            font-bold 
+            mb-6
+          "
+        >
+          Ready to Automate?
+        </h2>
 
-      {/* Final CTA */}
-      <section className="py-24 px-6 bg-gradient-to-r from-pink-600 via-purple-600 to-blue-600">
-        <div className="max-w-4xl mx-auto text-center text-white">
-          <h2 className="text-5xl font-bold mb-6">Ready to Automate?</h2>
-          <p className="text-xl mb-12 opacity-90 max-w-2xl mx-auto">
-            Join 50,000+ teams already saving time with intelligent automation. Start free, no credit card required.
-          </p>
-          <Link 
-            to="/signup"
-            className="inline-flex items-center space-x-3 bg-white text-purple-600 px-10 py-4 rounded-2xl font-bold text-lg hover:shadow-2xl hover:scale-105 transition-all duration-300"
-          >
-            <span>Start Automating Now</span>
-            <ArrowRight className="w-6 h-6" />
-          </Link>
+        <p className="text-base sm:text-lg md:text-xl mb-8 text-gray-700 max-w-2xl mx-auto lg:mx-0">
+          Join 50,000+ teams already saving <br />
+          time with intelligent automation. <br />
+          <span className="font-medium text-purple-600">
+            Start free, no credit card required.
+          </span>
+        </p>
+
+        <Link 
+          to="/signup"
+          className="inline-flex items-center space-x-3 bg-gradient-to-r from-pink-500 to-purple-600 text-white px-8 sm:px-10 py-4 rounded-2xl font-semibold text-lg shadow-md hover:shadow-xl hover:scale-105 transition-all duration-300"
+        >
+          <span>Start Automating Now</span>
+          <ArrowRight className="w-6 h-6" />
+        </Link>
+      </div>
+      
+      {/* Right side - IconCloud */}
+      <div className="flex justify-center lg:justify-end mt-10 lg:mt-0">
+        <div className="w-[280px] sm:w-[360px] md:w-[420px] lg:w-[480px]">
+          <IconCloudDemo />
         </div>
-      </section>
+      </div>
+    </div>
+  </div>
+</section>
 
       {/* Footer */}
       <footer className="bg-gray-900 text-white py-16 px-6">
