@@ -275,6 +275,7 @@ const IconCloudDemo = () => {
     "googledrive",
     "googlesheets",
     "discord",
+    "trello",
   ];
 
   const images = slugs.map((slug) => `https://cdn.simpleicons.org/${slug}/${slug}.svg`);
@@ -662,35 +663,54 @@ const LandingPage: React.FC = () => {
           </div>
         </div>
       </section>
-
-      {/* Final CTA with IconCloud */}
+{/* Final CTA with IconCloud */}
 <section className="py-24 px-6 bg-gradient-to-r from-gray-100 via-gray-200 to-gray-300">
+  <div className="max-w-7xl mx-auto">
+    <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
+      
+      {/* Left side - Text content */}
+      <div className="text-center lg:text-left">
+        <h2
+          className="
+            text-3xl
+            sm:text-4xl
+            md:text-5xl
+            lg:text-6xl
+            xl:text-5xl
+            text-gray-900 
+            font-bold 
+            mb-6
+          "
+        >
+          Ready to Automate?
+        </h2>
 
-        <div className="max-w-7xl mx-auto">
-          <div className="grid lg:grid-cols-2 gap-12 items-center">
-            {/* Left side - Text content */}
-            <div className="text-white">
-              <h2 className="text-5xl text-gray-900 font-bold mb-6">Ready to Automate?</h2>
-              <p className="text-xl mb-12 text-gray-700 max-w-2xl">
-  Join 50,000+ teams already saving time with intelligent automation. 
-  <span className="font-medium text-purple-600"> Start free, no credit card required.</span>
-</p>
-              <Link 
-                to="/signup"
-                  className="inline-flex items-center space-x-3 bg-gradient-to-r from-pink-500 to-purple-600 text-white px-10 py-4 rounded-2xl font-semibold text-lg shadow-md hover:bg-indigo-700 hover:shadow-xl hover:scale-105 transition-all duration-300"
-              >
-                <span>Start Automating Now</span>
-                <ArrowRight className="w-6 h-6" />
-              </Link>
-            </div>
-            
-            {/* Right side - IconCloud */}
-            <div className="relative">
-              <IconCloudDemo />
-            </div>
-          </div>
+        <p className="text-base sm:text-lg md:text-xl mb-8 text-gray-700 max-w-2xl mx-auto lg:mx-0">
+          Join 50,000+ teams already saving <br />
+          time with intelligent automation. <br />
+          <span className="font-medium text-purple-600">
+            Start free, no credit card required.
+          </span>
+        </p>
+
+        <Link 
+          to="/signup"
+          className="inline-flex items-center space-x-3 bg-gradient-to-r from-pink-500 to-purple-600 text-white px-8 sm:px-10 py-4 rounded-2xl font-semibold text-lg shadow-md hover:shadow-xl hover:scale-105 transition-all duration-300"
+        >
+          <span>Start Automating Now</span>
+          <ArrowRight className="w-6 h-6" />
+        </Link>
+      </div>
+      
+      {/* Right side - IconCloud */}
+      <div className="flex justify-center lg:justify-end mt-10 lg:mt-0">
+        <div className="w-[280px] sm:w-[360px] md:w-[420px] lg:w-[480px]">
+          <IconCloudDemo />
         </div>
-      </section>
+      </div>
+    </div>
+  </div>
+</section>
 
       {/* Footer */}
       <footer className="bg-gray-900 text-white py-16 px-6">
