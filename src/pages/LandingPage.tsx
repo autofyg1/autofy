@@ -12,281 +12,553 @@ import {
   Workflow,
   Shield
 } from 'lucide-react';
+import Interactive3DModel from '../components/Interactive3DModel';
 
 // Proper IconCloud Component with realistic 3D sphere rotation
+
 interface Icon {
+
   x: number;
+
   y: number;
+
   z: number;
+
   scale: number;
+
   opacity: number;
+
   id: number;
+
 }
+
+
 
 interface IconCloudProps {
+
   images?: string[];
+
 }
+
+
 
 function easeOutCubic(t: number): number {
+
   return 1 - Math.pow(1 - t, 3);
+
 }
 
+
+
 const IconCloud = ({ images }: IconCloudProps) => {
+
   const canvasRef = useRef<HTMLCanvasElement>(null);
+
   const [iconPositions, setIconPositions] = useState<Icon[]>([]);
+
   const [rotation, setRotation] = useState({ x: 0, y: 0 });
+
   const [isDragging, setIsDragging] = useState(false);
+
   const [lastMousePos, setLastMousePos] = useState({ x: 0, y: 0 });
+
   const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
+
   const [targetRotation, setTargetRotation] = useState<{
+
     x: number;
+
     y: number;
+
     startX: number;
+
     startY: number;
+
     distance: number;
+
     startTime: number;
+
     duration: number;
+
   } | null>(null);
+
   const animationFrameRef = useRef<number>();
+
   const rotationRef = useRef(rotation);
+
   const iconCanvasesRef = useRef<HTMLCanvasElement[]>([]);
+
   const imagesLoadedRef = useRef<boolean[]>([]);
 
+
+
   // Create icon canvases once when images change
+
   useEffect(() => {
+
     if (!images) return;
+
+
 
     imagesLoadedRef.current = new Array(images.length).fill(false);
 
+
+
     const newIconCanvases = images.map((imageUrl, index) => {
+
       const offscreen = document.createElement("canvas");
+
       offscreen.width = 40;
+
       offscreen.height = 40;
+
       const offCtx = offscreen.getContext("2d");
 
+
+
       if (offCtx) {
+
         const img = new Image();
+
         img.crossOrigin = "anonymous";
+
         img.src = imageUrl;
+
         img.onload = () => {
+
           offCtx.clearRect(0, 0, offscreen.width, offscreen.height);
 
+
+
           // Create circular clipping path
+
           offCtx.beginPath();
+
           offCtx.arc(20, 20, 20, 0, Math.PI * 2);
+
           offCtx.closePath();
+
           offCtx.clip();
 
+
+
           // Draw the image
+
           offCtx.drawImage(img, 0, 0, 40, 40);
 
+
+
           imagesLoadedRef.current[index] = true;
+
         };
+
       }
+
       return offscreen;
+
     });
 
+
+
     iconCanvasesRef.current = newIconCanvases;
+
   }, [images]);
+
+
 
   // Generate initial icon positions on a sphere using Fibonacci distribution
+
   useEffect(() => {
+
     if (!images) return;
+
     
+
     const newIcons: Icon[] = [];
+
     const numIcons = images.length;
 
+
+
     // Fibonacci sphere parameters for even distribution
+
     const offset = 2 / numIcons;
+
     const increment = Math.PI * (3 - Math.sqrt(5));
 
+
+
     for (let i = 0; i < numIcons; i++) {
+
       const y = i * offset - 1 + offset / 2;
+
       const r = Math.sqrt(1 - y * y);
+
       const phi = i * increment;
 
+
+
       const x = Math.cos(phi) * r;
+
       const z = Math.sin(phi) * r;
 
+
+
       newIcons.push({
+
         x: x * 140, // Increased radius for better visibility
+
         y: y * 140,
+
         z: z * 140,
+
         scale: 1,
+
         opacity: 1,
+
         id: i,
+
       });
+
     }
+
     setIconPositions(newIcons);
+
   }, [images]);
 
+
+
   // Handle mouse events
+
   const handleMouseDown = (e: React.MouseEvent<HTMLCanvasElement>) => {
+
     const rect = canvasRef.current?.getBoundingClientRect();
+
     if (!rect || !canvasRef.current) return;
 
+
+
     const x = e.clientX - rect.left;
+
     const y = e.clientY - rect.top;
 
+
+
     setIsDragging(true);
+
     setLastMousePos({ x: e.clientX, y: e.clientY });
+
   };
+
+
 
   const handleMouseMove = (e: React.MouseEvent<HTMLCanvasElement>) => {
+
     const rect = canvasRef.current?.getBoundingClientRect();
+
     if (rect) {
+
       const x = e.clientX - rect.left;
+
       const y = e.clientY - rect.top;
+
       setMousePos({ x, y });
+
     }
+
+
 
     if (isDragging) {
+
       const deltaX = e.clientX - lastMousePos.x;
+
       const deltaY = e.clientY - lastMousePos.y;
 
+
+
       rotationRef.current = {
+
         x: rotationRef.current.x + deltaY * 0.005,
+
         y: rotationRef.current.y + deltaX * 0.005,
+
       };
 
+
+
       setLastMousePos({ x: e.clientX, y: e.clientY });
+
     }
+
   };
+
+
 
   const handleMouseUp = () => {
+
     setIsDragging(false);
+
   };
 
+
+
   // Animation and rendering
+
   useEffect(() => {
+
     const canvas = canvasRef.current;
+
     const ctx = canvas?.getContext("2d");
+
     if (!canvas || !ctx) return;
 
+
+
     const animate = () => {
+
       ctx.clearRect(0, 0, canvas.width, canvas.height);
 
+
+
       const centerX = canvas.width / 2;
+
       const centerY = canvas.height / 2;
+
       const maxDistance = Math.sqrt(centerX * centerX + centerY * centerY);
+
       const dx = mousePos.x - centerX;
+
       const dy = mousePos.y - centerY;
+
       const distance = Math.sqrt(dx * dx + dy * dy);
+
       const speed = 0.002 + (distance / maxDistance) * 0.008;
 
+
+
       // Auto-rotation when not dragging
+
       if (!isDragging) {
+
         rotationRef.current = {
+
           x: rotationRef.current.x + (dy / canvas.height) * speed,
+
           y: rotationRef.current.y + (dx / canvas.width) * speed + 0.005, // Constant slow rotation
+
         };
+
       }
 
+
+
       // Sort icons by z-depth for proper rendering order
+
       const sortedIcons = [...iconPositions].sort((a, b) => {
+
         const cosX = Math.cos(rotationRef.current.x);
+
         const sinX = Math.sin(rotationRef.current.x);
+
         const cosY = Math.cos(rotationRef.current.y);
+
         const sinY = Math.sin(rotationRef.current.y);
+
+
 
         const aRotatedZ = a.x * sinY + a.z * cosY;
+
         const aFinalZ = a.y * sinX + (a.x * cosY - a.z * sinY) * cosX;
+
         
+
         const bRotatedZ = b.x * sinY + b.z * cosY;
+
         const bFinalZ = b.y * sinX + (b.x * cosY - b.z * sinY) * cosX;
 
+
+
         return aFinalZ - bFinalZ; // Render back to front
+
       });
+
+
 
       sortedIcons.forEach((icon, index) => {
+
         const cosX = Math.cos(rotationRef.current.x);
+
         const sinX = Math.sin(rotationRef.current.x);
+
         const cosY = Math.cos(rotationRef.current.y);
+
         const sinY = Math.sin(rotationRef.current.y);
 
+
+
         // 3D rotation transformations
+
         const rotatedX = icon.x * cosY - icon.z * sinY;
+
         const rotatedZ = icon.x * sinY + icon.z * cosY;
+
         const rotatedY = icon.y * cosX + rotatedZ * sinX;
+
         const finalZ = icon.y * sinX + rotatedZ * cosX;
 
+
+
         // Perspective projection
+
         const scale = Math.max(0.3, Math.min(1.2, (finalZ + 200) / 300));
+
         const opacity = Math.max(0.2, Math.min(1, (finalZ + 150) / 200));
 
+
+
         ctx.save();
+
         ctx.translate(
+
           canvas.width / 2 + rotatedX,
+
           canvas.height / 2 + rotatedY,
+
         );
+
         ctx.scale(scale, scale);
+
         ctx.globalAlpha = opacity;
 
+
+
         // Render icon if loaded
+
         if (iconCanvasesRef.current[icon.id] && imagesLoadedRef.current[icon.id]) {
+
           ctx.drawImage(iconCanvasesRef.current[icon.id], -20, -20, 40, 40);
+
         }
 
+
+
         ctx.restore();
+
       });
 
+
+
       animationFrameRef.current = requestAnimationFrame(animate);
+
     };
+
+
 
     animate();
 
+
+
     return () => {
+
       if (animationFrameRef.current) {
+
         cancelAnimationFrame(animationFrameRef.current);
+
       }
+
     };
+
   }, [iconPositions, isDragging, mousePos, images]);
 
+
+
   return (
+
     <canvas
+
       ref={canvasRef}
+
       width={500}
+
       height={500}
+
       onMouseDown={handleMouseDown}
+
       onMouseMove={handleMouseMove}
+
       onMouseUp={handleMouseUp}
+
       onMouseLeave={handleMouseUp}
+
       className="rounded-lg cursor-grab active:cursor-grabbing"
+
       aria-label="Interactive 3D Icon Cloud"
+
       role="img"
+
     />
+
   );
+
 };
 
+
+
 // IconCloudDemo Component
+
 const IconCloudDemo = () => {
+
   const slugs = [
+
     "github",
+
     "figma", 
+
     "reddit",
+
     "linkedin",
+
     "openai",
+
     "gmail",
+
     "notion",
+
     "x",
+
     "slack",
+
     "googlecalendar",
+
     "telegram",
+
     "googledrive",
+
     "googlesheets",
+
     "discord",
+
     "trello",
+
   ];
+
+
 
   const images = slugs.map((slug) => `https://cdn.simpleicons.org/${slug}/${slug}.svg`);
 
+
+
   return (
+
     <div className="relative flex size-full items-center justify-center overflow-hidden h-[500px]">
+
       <IconCloud images={images} />
+
     </div>
+
   );
+
 };
-import Interactive3DModel from '../components/Interactive3DModel';
 
 const LandingPage: React.FC = () => {
   const heroRef = useRef<HTMLDivElement>(null);
@@ -463,7 +735,7 @@ const LandingPage: React.FC = () => {
           </video>
           
           {/* Enhanced Responsive CSS - FIXED STYLES */}
-          <style jsx>{`
+          <style>{`
             @media (max-width: 768px) {
               video {
                 object-fit: cover !important;
@@ -579,28 +851,6 @@ const LandingPage: React.FC = () => {
             </p>
           </div>
 
-          <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-8">
-            {features.map((feature, index) => {
-              const Icon = feature.icon;
-              return (
-                <div 
-                  key={index} 
-                  className="group bg-white p-8 rounded-3xl shadow-lg hover:shadow-2xl transition-all duration-500 border border-gray-100 hover:border-gray-200 cursor-pointer"
-                  style={{ 
-                    transform: typeof window !== 'undefined' ? 
-                      `perspective(1000px) rotateX(${(mousePosition.y / window.innerHeight - 0.5) * -5}deg) rotateY(${(mousePosition.x / window.innerWidth - 0.5) * 5}deg)` : 
-                      'none',
-                    transformStyle: 'preserve-3d'
-                  }}
-                >
-                  <div className={`w-16 h-16 rounded-2xl bg-gradient-to-r ${feature.color} flex items-center justify-center mb-6 group-hover:scale-110 transition-transform duration-300 shadow-lg`}>
-                    <Icon className="w-8 h-8 text-white" />
-                  </div>
-                  <h3 className="text-xl font-bold mb-4 text-gray-900">{feature.title}</h3>
-                  <p className="text-gray-600 leading-relaxed">{feature.description}</p>
-                </div>
-              );
-            })}
           {/* Enhanced layout with 3D Model */}
           <div className="grid lg:grid-cols-3 gap-12 items-center">
             {/* Features Grid - Left Side */}
@@ -775,53 +1025,101 @@ const LandingPage: React.FC = () => {
           </div>
         </div>
       </section>
-{/* Final CTA with IconCloud */}
+
+      {/* Final CTA with IconCloud */}
+
 <section className="py-24 px-6 bg-gradient-to-r from-gray-100 via-gray-200 to-gray-300">
+
   <div className="max-w-7xl mx-auto">
+
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
+
       
+
       {/* Left side - Text content */}
+
       <div className="text-center lg:text-left">
+
         <h2
+
           className="
+
             text-3xl
+
             sm:text-4xl
+
             md:text-5xl
+
             lg:text-6xl
+
             xl:text-5xl
+
             text-gray-900 
+
             font-bold 
+
             mb-6
+
           "
+
         >
+
           Ready to Automate?
+
         </h2>
 
+
+
         <p className="text-base sm:text-lg md:text-xl mb-8 text-gray-700 max-w-2xl mx-auto lg:mx-0">
+
           Join 50,000+ teams already saving <br />
+
           time with intelligent automation. <br />
+
           <span className="font-medium text-purple-600">
+
             Start free, no credit card required.
+
           </span>
+
         </p>
 
+
+
         <Link 
+
           to="/signup"
+
           className="inline-flex items-center space-x-3 bg-gradient-to-r from-pink-500 to-purple-600 text-white px-8 sm:px-10 py-4 rounded-2xl font-semibold text-lg shadow-md hover:shadow-xl hover:scale-105 transition-all duration-300"
+
         >
+
           <span>Start Automating Now</span>
+
           <ArrowRight className="w-6 h-6" />
+
         </Link>
+
       </div>
+
       
+
       {/* Right side - IconCloud */}
+
       <div className="flex justify-center lg:justify-end mt-10 lg:mt-0">
+
         <div className="w-[280px] sm:w-[360px] md:w-[420px] lg:w-[480px]">
+
           <IconCloudDemo />
+
         </div>
+
       </div>
+
     </div>
+
   </div>
+
 </section>
 
       {/* Footer */}
@@ -893,7 +1191,7 @@ const LandingPage: React.FC = () => {
         </div>
       </footer>
 
-      <style jsx>{`
+      <style>{`
         @keyframes scroll {
           0% {
             transform: translateX(0);
