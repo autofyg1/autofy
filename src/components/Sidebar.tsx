@@ -34,7 +34,7 @@ const Sidebar: React.FC = () => {
             <Zap className="w-6 h-6 text-white" />
           </div>
           <span className="text-xl font-bold bg-gradient-to-r from-blue-400 to-violet-400 bg-clip-text text-transparent">
-            AutoFlow
+            AutoFy
           </span>
         </Link>
       </div>
