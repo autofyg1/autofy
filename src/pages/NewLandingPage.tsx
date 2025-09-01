@@ -8,20 +8,623 @@ gsap.registerPlugin(ScrollTrigger);
 import { 
   ArrowRight, 
   Zap, 
-  Workflow, 
-  Sparkles,
-  Shield,
-  Clock,
-  Users,
-  BarChart3,
   Mail,
   MessageSquare,
   Calendar,
   Database,
-  Bot
+  Bot,
+  Workflow,
+  BarChart3,
+  Shield,
+  Clock,
+  Users
 } from 'lucide-react';
 import WorkflowDemo from '../components/WorkflowDemo';
-import FeatureCard from '../components/FeatureCard';
+
+// Utility function for class names
+const cn = (...classes: (string | undefined | null | false)[]): string => {
+  return classes.filter(Boolean).join(' ');
+};
+
+// Card Components
+interface CardProps extends React.HTMLAttributes<HTMLDivElement> {}
+
+function AnimatedCard({ className, ...props }: CardProps) {
+  return (
+    <div
+      role="region"
+      aria-labelledby="card-title"
+      aria-describedby="card-description"
+      className={cn(
+        "group/animated-card relative w-[380px] overflow-hidden rounded-2xl border border-gray-200/50 bg-white/90 shadow-xl backdrop-blur-sm transition-all duration-500 hover:shadow-2xl hover:scale-105",
+        className
+      )}
+      {...props}
+    />
+  )
+}
+
+function CardBody({ className, ...props }: CardProps) {
+  return (
+    <div
+      role="group"
+      className={cn(
+        "flex flex-col space-y-3 border-t border-gray-200/30 p-6",
+        className
+      )}
+      {...props}
+    />
+  )
+}
+
+interface CardTitleProps extends React.HTMLAttributes<HTMLHeadingElement> {}
+
+function CardTitle({ className, ...props }: CardTitleProps) {
+  return (
+    <h3
+      className={cn(
+        "text-xl leading-none font-bold tracking-tight text-gray-900",
+        className
+      )}
+      {...props}
+    />
+  )
+}
+
+interface CardDescriptionProps extends React.HTMLAttributes<HTMLParagraphElement> {}
+
+function CardDescription({ className, ...props }: CardDescriptionProps) {
+  return (
+    <p
+      className={cn(
+        "text-sm leading-relaxed text-gray-600",
+        className
+      )}
+      {...props}
+    />
+  )
+}
+
+function CardVisual({ className, ...props }: CardProps) {
+  return (
+    <div
+      className={cn("h-[200px] w-[380px] overflow-hidden", className)}
+      {...props}
+    />
+  )
+}
+
+// Visual Component Props
+interface VisualProps {
+  mainColor?: string
+  secondaryColor?: string
+  gridColor?: string
+}
+
+// Shared Components
+const EllipseGradient: React.FC<{ color: string }> = ({ color }) => {
+  return (
+    <div className="absolute inset-0 z-[5] flex h-full w-full items-center justify-center">
+      <svg
+        width="380"
+        height="200"
+        viewBox="0 0 380 200"
+        fill="none"
+        xmlns="http://www.w3.org/2000/svg"
+      >
+        <rect width="380" height="200" fill="url(#paint0_radial)" />
+        <defs>
+          <radialGradient
+            id="paint0_radial"
+            cx="0"
+            cy="0"
+            r="1"
+            gradientUnits="userSpaceOnUse"
+            gradientTransform="translate(190 100) rotate(90) scale(100 190)"
+          >
+            <stop stopColor={color} stopOpacity="0.3" />
+            <stop offset="0.4" stopColor={color} stopOpacity="0.2" />
+            <stop offset="1" stopOpacity="0" />
+          </radialGradient>
+        </defs>
+      </svg>
+    </div>
+  )
+}
+
+const GridLayer: React.FC<{ color: string }> = ({ color }) => {
+  return (
+    <div
+      style={{ "--grid-color": color } as React.CSSProperties}
+      className="pointer-events-none absolute inset-0 z-[4] h-full w-full bg-transparent bg-[linear-gradient(to_right,var(--grid-color)_1px,transparent_1px),linear-gradient(to_bottom,var(--grid-color)_1px,transparent_1px)] [mask-image:radial-gradient(ellipse_60%_60%_at_50%_50%,#000_70%,transparent_100%)] bg-[size:24px_24px] bg-center opacity-60"
+    />
+  )
+}
+
+// Visual 1: Workflow Automation Analytics
+const WorkflowAnalyticsVisual: React.FC<VisualProps> = ({
+  mainColor = "#8b5cf6",
+  secondaryColor = "#06b6d4",
+  gridColor = "#80808020",
+}) => {
+  const [hovered, setHovered] = useState(false)
+  const [automationProgress, setAutomationProgress] = useState(25)
+  const [efficiencyProgress, setEfficiencyProgress] = useState(0)
+
+  useEffect(() => {
+    let timeout: NodeJS.Timeout
+
+    if (hovered) {
+      timeout = setTimeout(() => {
+        setAutomationProgress(85)
+        setEfficiencyProgress(92)
+      }, 300)
+    } else {
+      setAutomationProgress(25)
+      setEfficiencyProgress(0)
+    }
+
+    return () => clearTimeout(timeout)
+  }, [hovered])
+
+  const radius = 45
+  const circumference = 2 * Math.PI * radius
+  const automationDashoffset = circumference - (automationProgress / 100) * circumference
+  const efficiencyDashoffset = circumference - (efficiencyProgress / 100) * circumference
+
+  const automationMetrics = [
+    { id: 1, translateX: "120", translateY: "60", text: "Email", icon: "📧" },
+    { id: 2, translateX: "120", translateY: "-60", text: "Slack", icon: "💬" },
+    { id: 3, translateX: "140", translateY: "0", text: "Calendar", icon: "📅" },
+    { id: 4, translateX: "-140", translateY: "0", text: "Database", icon: "🗄️" },
+    { id: 5, translateX: "-120", translateY: "60", text: "API", icon: "🔗" },
+    { id: 6, translateX: "-120", translateY: "-60", text: "Webhook", icon: "🎯" },
+  ]
+
+  return (
+    <>
+      <div
+        className="absolute inset-0 z-20"
+        onMouseEnter={() => setHovered(true)}
+        onMouseLeave={() => setHovered(false)}
+      />
+      <div className="relative h-[200px] w-[380px] overflow-hidden rounded-t-2xl">
+        {/* Main Automation Chart */}
+        <div className="ease-[cubic-bezier(0.6, 0.6, 0, 1)] absolute top-0 left-0 z-[7] flex h-[400px] w-[380px] transform items-center justify-center transition-transform duration-700 group-hover/animated-card:-translate-y-[100px] group-hover/animated-card:scale-110">
+          <div className="relative flex h-[140px] w-[140px] items-center justify-center">
+            <svg width="140" height="140" viewBox="0 0 100 100">
+              <circle
+                cx="50"
+                cy="50"
+                r={radius}
+                stroke="currentColor"
+                strokeWidth="8"
+                fill="transparent"
+                opacity={0.1}
+                className="text-gray-400"
+              />
+              <circle
+                cx="50"
+                cy="50"
+                r={radius}
+                stroke={secondaryColor}
+                strokeWidth="12"
+                fill="transparent"
+                strokeDasharray={circumference}
+                strokeDashoffset={efficiencyDashoffset}
+                transform="rotate(-90 50 50)"
+                style={{
+                  transition: "stroke-dashoffset 0.7s cubic-bezier(0.6, 0.6, 0, 1)",
+                }}
+              />
+              <circle
+                cx="50"
+                cy="50"
+                r={radius}
+                stroke={mainColor}
+                strokeWidth="12"
+                fill="transparent"
+                strokeDasharray={circumference}
+                strokeDashoffset={automationDashoffset}
+                transform="rotate(-90 50 50)"
+                style={{
+                  transition: "stroke-dashoffset 0.7s cubic-bezier(0.6, 0.6, 0, 1)",
+                }}
+              />
+            </svg>
+            <div className="absolute inset-0 flex items-center justify-center">
+              <span className="text-2xl font-bold text-gray-900">
+                {hovered ? (efficiencyProgress > 75 ? efficiencyProgress : automationProgress) : automationProgress}%
+              </span>
+            </div>
+          </div>
+        </div>
+
+        {/* Automation Badge */}
+        <div className="ease-[cubic-bezier(0.6, 0.6, 0, 1)] absolute inset-0 z-[6] flex w-[380px] translate-y-0 items-start justify-center bg-transparent p-6 transition-transform duration-700 group-hover/animated-card:translate-y-full">
+          <div className="ease-[cubic-bezier(0.6, 0.6, 0, 1)] rounded-lg border border-gray-200/40 bg-white/60 px-4 py-3 opacity-100 backdrop-blur-md transition-opacity duration-500 group-hover/animated-card:opacity-0">
+            <div className="flex items-center gap-3">
+              <div className="h-3 w-3 shrink-0 rounded-full" style={{ backgroundColor: mainColor }} />
+              <p className="text-sm font-medium text-gray-900">
+                Workflow Efficiency
+              </p>
+            </div>
+            <p className="mt-1 text-xs text-gray-600">
+              Automated task completion rate
+            </p>
+          </div>
+        </div>
+
+        {/* Integration Items */}
+        <div className="ease-[cubic-bezier(0.6, 0.6, 0, 1)] absolute inset-0 z-[7] flex items-center justify-center opacity-0 transition-opacity duration-700 group-hover/animated-card:opacity-100">
+          {automationMetrics.map((item, index) => (
+            <div
+              key={item.id}
+              className="ease-[cubic-bezier(0.6, 0.6, 0, 1)] absolute flex items-center justify-center gap-2 rounded-full border border-gray-200/60 bg-white/90 px-3 py-1.5 backdrop-blur-md transition-all duration-700"
+              style={{
+                transform: hovered
+                  ? `translate(${item.translateX}px, ${item.translateY}px)`
+                  : "translate(0px, 0px)",
+                transitionDelay: `${index * 100}ms`,
+              }}
+            >
+              <span className="text-sm">{item.icon}</span>
+              <span className="text-xs font-medium text-gray-900">
+                {item.text}
+              </span>
+            </div>
+          ))}
+        </div>
+
+        <EllipseGradient color={mainColor} />
+        <GridLayer color={gridColor} />
+      </div>
+    </>
+  )
+}
+
+// Visual 2: Data Flow Animation
+const DataFlowVisual: React.FC<VisualProps> = ({
+  mainColor = "#06b6d4",
+  secondaryColor = "#8b5cf6",
+  gridColor = "#80808020",
+}) => {
+  const [hovered, setHovered] = useState(false)
+
+  return (
+    <>
+      <div
+        className="absolute inset-0 z-20"
+        onMouseEnter={() => setHovered(true)}
+        onMouseLeave={() => setHovered(false)}
+      />
+      <div className="relative h-[200px] w-[380px] overflow-hidden rounded-t-2xl">
+        {/* Animated Data Streams */}
+        <div className="absolute inset-0 z-[6]">
+          <svg
+            className="absolute top-0 left-0 w-full h-full"
+            viewBox="0 0 380 200"
+            fill="none"
+          >
+            {/* Data flow paths */}
+            <path
+              d="M50,50 Q190,80 330,50"
+              stroke={mainColor}
+              strokeWidth="3"
+              fill="none"
+              className={cn(
+                "transition-all duration-1000 ease-in-out",
+                hovered ? "opacity-100" : "opacity-60"
+              )}
+              strokeDasharray="5,5"
+              strokeDashoffset={hovered ? "0" : "20"}
+            />
+            <path
+              d="M50,100 Q190,70 330,100"
+              stroke={secondaryColor}
+              strokeWidth="3"
+              fill="none"
+              className={cn(
+                "transition-all duration-1000 ease-in-out",
+                hovered ? "opacity-100" : "opacity-60"
+              )}
+              strokeDasharray="5,5"
+              strokeDashoffset={hovered ? "0" : "15"}
+              style={{ transitionDelay: "200ms" }}
+            />
+            <path
+              d="M50,150 Q190,120 330,150"
+              stroke="#10b981"
+              strokeWidth="3"
+              fill="none"
+              className={cn(
+                "transition-all duration-1000 ease-in-out",
+                hovered ? "opacity-100" : "opacity-60"
+              )}
+              strokeDasharray="5,5"
+              strokeDashoffset={hovered ? "0" : "10"}
+              style={{ transitionDelay: "400ms" }}
+            />
+          </svg>
+        </div>
+
+        {/* Data Nodes */}
+        <div className="absolute inset-0 z-[7]">
+          {[
+            { x: 50, y: 50, icon: "📊", label: "Input" },
+            { x: 190, y: 100, icon: "⚙️", label: "Process" },
+            { x: 330, y: 100, icon: "✅", label: "Output" }
+          ].map((node, i) => (
+            <div
+              key={i}
+              className={cn(
+                "absolute transition-all duration-500 ease-in-out flex flex-col items-center",
+                hovered ? "scale-110" : "scale-100"
+              )}
+              style={{
+                left: node.x - 20,
+                top: node.y - 20,
+                transitionDelay: `${i * 150}ms`,
+              }}
+            >
+              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-white/90 backdrop-blur-sm border border-gray-200/50 shadow-lg">
+                <span className="text-lg">{node.icon}</span>
+              </div>
+              <span className="text-xs font-medium text-gray-700 mt-1">{node.label}</span>
+            </div>
+          ))}
+        </div>
+
+        <GridLayer color={gridColor} />
+      </div>
+    </>
+  )
+}
+
+// Visual 3: Workflow Builder
+// Visual 3: Workflow Builder - UPDATED
+const WorkflowBuilderVisual: React.FC<VisualProps> = ({
+  mainColor = "#6366f1",
+  secondaryColor = "#14b8a6",
+  gridColor = "#6366f120",
+}) => {
+  const [hovered, setHovered] = useState(false)
+  const [activeNode, setActiveNode] = useState(0)
+
+  useEffect(() => {
+    if (hovered) {
+      const interval = setInterval(() => {
+        setActiveNode((prev) => (prev + 1) % 4)
+      }, 500)
+      return () => clearInterval(interval)
+    } else {
+      setActiveNode(0)
+    }
+  }, [hovered])
+
+  const nodes = [
+    { id: 1, x: 60, y: 100, label: "Trigger", icon: "⚡" },
+    { id: 2, x: 140, y: 100, label: "Process", icon: "⚙️" },
+    { id: 3, x: 220, y: 100, label: "Transform", icon: "🔄" },
+    { id: 4, x: 300, y: 100, label: "Deploy", icon: "🚀" },
+  ]
+
+  return (
+    <>
+      <div
+        className="absolute inset-0 z-20"
+        onMouseEnter={() => setHovered(true)}
+        onMouseLeave={() => setHovered(false)}
+      />
+      <div className="relative h-[200px] w-[380px] overflow-hidden rounded-t-2xl bg-gradient-to-br from-indigo-50 via-white to-teal-50">
+        
+        {/* Connecting Lines */}
+        <svg className="absolute inset-0 z-[5] h-full w-full">
+          {nodes.slice(0, -1).map((node, i) => (
+            <React.Fragment key={i}>
+              <line
+                x1={node.x + 20}
+                y1={node.y}
+                x2={nodes[i + 1].x - 20}
+                y2={nodes[i + 1].y}
+                stroke={mainColor}
+                strokeWidth="2"
+                strokeDasharray="5,5"
+                opacity={hovered && i < activeNode ? 1 : 0.3}
+                className="transition-all duration-300"
+              />
+              {hovered && i === activeNode - 1 && (
+                <circle r="3" fill={secondaryColor}>
+                  <animateMotion
+                    dur="0.5s"
+                    repeatCount="1"
+                    path={`M ${node.x + 20},${node.y} L ${nodes[i + 1].x - 20},${nodes[i + 1].y}`}
+                  />
+                </circle>
+              )}
+            </React.Fragment>
+          ))}
+        </svg>
+
+        {/* Workflow Nodes */}
+        <div className="absolute inset-0 z-[7]">
+          {nodes.map((node, i) => (
+            <div
+              key={node.id}
+              className={cn(
+                "absolute flex flex-col items-center transition-all duration-500",
+                hovered && i <= activeNode ? "scale-110" : "scale-100"
+              )}
+              style={{
+                left: node.x - 30,
+                top: node.y - 30,
+                transform: hovered && i === activeNode ? "translateY(-10px)" : "translateY(0)",
+              }}
+            >
+              <div
+                className={cn(
+                  "flex h-14 w-14 items-center justify-center rounded-xl shadow-lg transition-all duration-300 backdrop-blur-sm border",
+                  hovered && i <= activeNode
+                    ? "bg-gradient-to-br from-indigo-500 to-indigo-600 shadow-indigo-300 border-indigo-200"
+                    : "bg-white/90 shadow-gray-200 border-gray-200/50"
+                )}
+              >
+                <span className={cn(
+                  "text-xl transition-all duration-300",
+                  hovered && i <= activeNode ? "scale-125" : "scale-100"
+                )}>
+                  {node.icon}
+                </span>
+              </div>
+              <span className={cn(
+                "mt-2 text-xs font-semibold transition-all duration-300",
+                hovered && i <= activeNode 
+                  ? "text-indigo-600" 
+                  : "text-gray-500"
+              )}>
+                {node.label}
+              </span>
+            </div>
+          ))}
+        </div>
+
+        {/* Status Badge */}
+        <div className="absolute top-4 right-4 z-[8]">
+          <div className={cn(
+            "rounded-full px-3 py-1 text-xs font-semibold transition-all duration-300 backdrop-blur-sm border",
+            hovered
+              ? "bg-green-100/80 text-green-700 border-green-200/50"
+              : "bg-gray-100/80 text-gray-600 border-gray-200/50"
+          )}>
+            {hovered ? "● Running" : "○ Ready"}
+          </div>
+        </div>
+
+        <GridLayer color={gridColor} />
+      </div>
+    </>
+  )
+}
+// Visual 4: Integration Network
+const IntegrationNetworkVisual: React.FC<VisualProps> = ({
+  mainColor = "#10b981",
+  secondaryColor = "#3b82f6",
+  gridColor = "#80808020",
+}) => {
+  const [hovered, setHovered] = useState(false)
+
+  const integrations = [
+    { id: 1, x: 190, y: 100, size: 12, icon: "🤖", name: "AI" },
+    { id: 2, x: 120, y: 60, size: 8, icon: "📧", name: "Email" },
+    { id: 3, x: 260, y: 80, size: 8, icon: "💬", name: "Slack" },
+    { id: 4, x: 100, y: 140, size: 8, icon: "📅", name: "Calendar" },
+    { id: 5, x: 280, y: 140, size: 8, icon: "📊", name: "Analytics" },
+    { id: 6, x: 190, y: 40, size: 6, icon: "🔗", name: "API" },
+    { id: 7, x: 190, y: 160, size: 6, icon: "💾", name: "Database" },
+  ]
+
+  return (
+    <>
+      <div
+        className="absolute inset-0 z-20"
+        onMouseEnter={() => setHovered(true)}
+        onMouseLeave={() => setHovered(false)}
+      />
+      <div className="relative h-[200px] w-[380px] overflow-hidden rounded-t-2xl">
+        {/* Connection Lines */}
+        <svg className="absolute inset-0 z-[6] h-full w-full">
+          {integrations.map((node, i) =>
+            integrations.slice(i + 1).map((targetNode, j) => (
+              <line
+                key={`${i}-${j}`}
+                x1={node.x}
+                y1={node.y}
+                x2={targetNode.x}
+                y2={targetNode.y}
+                stroke={hovered ? mainColor : secondaryColor}
+                strokeWidth={hovered ? 2 : 1}
+                opacity={hovered ? 0.8 : 0.4}
+                className="transition-all duration-500 ease-in-out"
+                style={{ transitionDelay: `${(i + j) * 50}ms` }}
+              />
+            ))
+          )}
+        </svg>
+
+        {/* Integration Nodes */}
+        <div className="absolute inset-0 z-[7]">
+          {integrations.map((node, i) => (
+            <div
+              key={node.id}
+              className={cn(
+                "absolute rounded-full bg-white/90 backdrop-blur-sm border border-gray-200/50 shadow-lg flex items-center justify-center transition-all duration-500 ease-in-out",
+                hovered ? "animate-pulse scale-110" : "scale-100"
+              )}
+              style={{
+                left: node.x - node.size / 2,
+                top: node.y - node.size / 2,
+                width: node.size * 4,
+                height: node.size * 4,
+                transitionDelay: `${i * 100}ms`,
+              }}
+            >
+              <span className="text-lg">{node.icon}</span>
+            </div>
+          ))}
+        </div>
+
+        <EllipseGradient color={mainColor} />
+        <GridLayer color={gridColor} />
+      </div>
+    </>
+  )
+}
+
+// Interactive Cards Component
+function InteractiveCards() {
+  const cards = [
+    {
+      visual: <WorkflowAnalyticsVisual />,
+      title: "Workflow Analytics",
+      description: "Track automation performance with real-time metrics and efficiency monitoring across all your integrations."
+    },
+    {
+      visual: <DataFlowVisual />,
+      title: "Data Flow Processing",
+      description: "Visualize how data moves through your automated workflows with intelligent routing and processing."
+    },
+    {
+      visual: <WorkflowBuilderVisual />,
+      title: "Visual Workflow Builder",
+      description: "Build complex automations with our intuitive drag-and-drop interface. No coding required."
+    },
+    {
+      visual: <IntegrationNetworkVisual />,
+      title: "Integration Network",
+      description: "Connect all your favorite tools and services in a unified automation ecosystem."
+    }
+  ]
+
+  return (
+    <div className="w-full">
+      <div className="mx-auto max-w-7xl">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-8 place-items-center">
+          {cards.map((card, index) => (
+            <AnimatedCard key={index} className="feature-card">
+              <CardVisual>
+                {card.visual}
+              </CardVisual>
+              <CardBody>
+                <CardTitle>{card.title}</CardTitle>
+                <CardDescription>{card.description}</CardDescription>
+              </CardBody>
+            </AnimatedCard>
+          ))}
+        </div>
+      </div>
+    </div>
+  )
+}
 
 const NewLandingPage: React.FC = () => {
   const heroRef = useRef<HTMLDivElement>(null);
@@ -40,41 +643,41 @@ const NewLandingPage: React.FC = () => {
   };
 
   // GSAP ScrollTrigger animations
-useEffect(() => {
-  // Smooth scrolling setup
-  gsap.config({ force3D: true });
-  
-  // Set initial states for elements - FIXED SELECTORS
-  gsap.set(".hero-text h1", { y: 50, opacity: 0 });
-  gsap.set(".hero-text p", { y: 50, opacity: 0 });
-  gsap.set(".hero-buttons", { y: 50, opacity: 0 });
-  gsap.set(".workflow-content", { y: 80, opacity: 0 });
-  gsap.set(".feature-card", { y: 60, opacity: 0, scale: 0.8 });
-  gsap.set(".integration-item", { y: 30, opacity: 0 });
-  gsap.set(".stats-item", { y: 40, opacity: 0 });
-  
-  // Hero text animation - FIXED
-  if (heroRef.current) {
-    const tl = gsap.timeline({ delay: 0.5 });
-    tl.to(".hero-text h1", {
-      y: 0,
-      opacity: 1,
-      duration: 1.2,
-      ease: "power3.out"
-    })
-    .to(".hero-text p", {
-      y: 0,
-      opacity: 1,
-      duration: 1,
-      ease: "power2.out"
-    }, "-=0.8")
-    .to(".hero-buttons", {
-      y: 0,
-      opacity: 1,
-      duration: 0.8,
-      ease: "power2.out"
-    }, "-=0.6");
-  }
+  useEffect(() => {
+    // Smooth scrolling setup
+    gsap.config({ force3D: true });
+    
+    // Set initial states for elements
+    gsap.set(".hero-text h1", { y: 50, opacity: 0 });
+    gsap.set(".hero-text p", { y: 50, opacity: 0 });
+    gsap.set(".hero-buttons", { y: 50, opacity: 0 });
+    gsap.set(".workflow-content", { y: 80, opacity: 0 });
+    gsap.set(".feature-card", { y: 60, opacity: 0, scale: 0.8 });
+    gsap.set(".integration-item", { y: 30, opacity: 0 });
+    gsap.set(".stats-item", { y: 40, opacity: 0 });
+    
+    // Hero text animation
+    if (heroRef.current) {
+      const tl = gsap.timeline({ delay: 0.5 });
+      tl.to(".hero-text h1", {
+        y: 0,
+        opacity: 1,
+        duration: 1.2,
+        ease: "power3.out"
+      })
+      .to(".hero-text p", {
+        y: 0,
+        opacity: 1,
+        duration: 1,
+        ease: "power2.out"
+      }, "-=0.8")
+      .to(".hero-buttons", {
+        y: 0,
+        opacity: 1,
+        duration: 0.8,
+        ease: "power2.out"
+      }, "-=0.6");
+    }
 
     // Workflow section animation
     if (workflowRef.current) {
@@ -101,7 +704,7 @@ useEffect(() => {
         scale: 1,
         duration: 0.8,
         ease: "back.out(1.7)",
-        stagger: 0.1,
+        stagger: 0.2,
         scrollTrigger: {
           trigger: featuresRef.current,
           start: "top 75%",
@@ -249,45 +852,42 @@ useEffect(() => {
           ))}
         </div>
         
-       {/* Hero Text Container - Positioned on Left */}
-<div className="relative z-20 px-6 max-w-2xl text-center md:text-left md:max-w-4xl md:-top-24 md:left-[-200px] hero-text">
-  {/* H1 outside the 3D transform div */}
-  <h1 className="text-4xl md:text-7xl font-extrabold leading-tight text-white transform -translate-y-16 md:-translate-y-32">
-    <span className="whitespace-nowrap">Automate Tasks</span>
-    <br />
-    <span className="bg-gradient-to-r from-pink-400 via-purple-400 to-blue-400 bg-clip-text text-transparent">
-      Effortlessly
-    </span>
-  </h1>
-  
-  {/* Rest of content with 3D transform */}
-  <div
-    className="transform transition-all duration-1000"
-    style={{ transform: get3DTransform(0.1) }}
-  >
-    <p className="text-xl md:text-xl text-white/90 mb-6 max-w-2xl leading-relaxed drop-shadow-lg mt-4">
-      Transform your workflows with intelligent automation. Connect apps,
-      eliminate repetitive tasks, and focus on what truly matters.
-    </p>
-    
-    {/* FIXED BUTTON CONTAINER */}
-    <div className="flex flex-col sm:flex-row items-center sm:space-x-4 space-y-3 sm:space-y-0 mt-6 hero-buttons">
-      <Link
-        to="/signup"
-        className="group bg-gradient-to-r from-pink-500 to-purple-600 text-white px-6 py-3 rounded-xl font-semibold text-base hover:shadow-xl hover:scale-105 transition-all duration-300 flex items-center space-x-2"
-        onMouseEnter={() => setIsHovering(true)}
-        onMouseLeave={() => setIsHovering(false)}
-      >
-        <span>Get Started Free</span>
-        <ArrowRight
-          className={`w-5 h-5 transition-transform duration-300 ${
-            isHovering ? 'translate-x-1' : ''
-          }`}
-        />
-      </Link>
-    </div>
-  </div>
-</div>
+        {/* Hero Text Container */}
+        <div className="relative z-20 px-6 max-w-2xl text-center md:text-left md:max-w-4xl md:-top-24 md:left-[-200px] hero-text">
+          <h1 className="text-4xl md:text-7xl font-extrabold leading-tight text-white transform -translate-y-16 md:-translate-y-32">
+            <span className="whitespace-nowrap">Automate Tasks</span>
+            <br />
+            <span className="bg-gradient-to-r from-pink-400 via-purple-400 to-blue-400 bg-clip-text text-transparent">
+              Effortlessly
+            </span>
+          </h1>
+          
+          <div
+            className="transform transition-all duration-1000"
+            style={{ transform: get3DTransform(0.1) }}
+          >
+            <p className="text-xl md:text-xl text-white/90 mb-6 max-w-2xl leading-relaxed drop-shadow-lg mt-4">
+              Transform your workflows with intelligent automation. Connect apps,
+              eliminate repetitive tasks, and focus on what truly matters.
+            </p>
+            
+            <div className="flex flex-col sm:flex-row items-center sm:space-x-4 space-y-3 sm:space-y-0 mt-6 hero-buttons">
+              <Link
+                to="/signup"
+                className="group bg-gradient-to-r from-pink-500 to-purple-600 text-white px-6 py-3 rounded-xl font-semibold text-base hover:shadow-xl hover:scale-105 transition-all duration-300 flex items-center space-x-2"
+                onMouseEnter={() => setIsHovering(true)}
+                onMouseLeave={() => setIsHovering(false)}
+              >
+                <span>Get Started Free</span>
+                <ArrowRight
+                  className={`w-5 h-5 transition-transform duration-300 ${
+                    isHovering ? 'translate-x-1' : ''
+                  }`}
+                />
+              </Link>
+            </div>
+          </div>
+        </div>
 
         {/* Scroll indicator */}
         <div className="absolute bottom-8 left-1/2 transform -translate-x-1/2 z-20">
@@ -312,81 +912,28 @@ useEffect(() => {
             </p>
           </div>
 
-          {/* Workflow Demo */}
           <div className="workflow-content relative">
             <WorkflowDemo />
           </div>
         </div>
       </section>
 
-      {/* Feature Highlights */}
+      {/* Interactive Cards - Feature Highlights */}
       <section 
         ref={featuresRef}
-        className="py-16 px-6"
+        className="py-20 px-6 bg-white"
       >
         <div className="max-w-6xl mx-auto">
-          <div 
-            className={`text-center mb-16 transform transition-all duration-1000 ${
-              isVisible.features ? 'translate-y-0 opacity-100' : 'translate-y-10 opacity-0'
-            }`}
-          >
+          <div className="text-center mb-16">
             <h2 className="text-4xl md:text-5xl font-bold text-gray-900 mb-6">
-              Everything you need
+              Powerful automation features
             </h2>
             <p className="text-xl text-gray-600 max-w-2xl mx-auto">
-              Powerful features that grow with your business
+              Everything you need to build, deploy, and scale your workflow automations
             </p>
           </div>
 
-          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
-            {[
-              {
-                icon: Workflow,
-                title: 'Visual Builder',
-                description: 'Create workflows with our intuitive drag-and-drop interface. See your automation come to life.',
-                delay: 'delay-100'
-              },
-              {
-                icon: Sparkles,
-                title: 'Smart Triggers',
-                description: 'AI-powered triggers that understand context and respond to complex conditions automatically.',
-                delay: 'delay-200'
-              },
-              {
-                icon: Shield,
-                title: 'Enterprise Ready',
-                description: 'Bank-level security with SOC 2 compliance. Your data stays safe and private.',
-                delay: 'delay-300'
-              },
-              {
-                icon: Clock,
-                title: 'Save Time',
-                description: 'Reclaim 25+ hours per week by automating repetitive tasks and manual processes.',
-                delay: 'delay-400'
-              },
-              {
-                icon: Users,
-                title: 'Team Collaboration',
-                description: 'Share workflows, collaborate in real-time, and scale automation across your organization.',
-                delay: 'delay-500'
-              },
-              {
-                icon: BarChart3,
-                title: 'Analytics',
-                description: 'Track performance, monitor workflows, and optimize your automation with detailed insights.',
-                delay: 'delay-600'
-              }
-            ].map((feature, index) => (
-              <FeatureCard
-                key={index}
-                icon={feature.icon}
-                title={feature.title}
-                description={feature.description}
-                delay={feature.delay}
-                isVisible={isVisible.features}
-              />
-            ))}
-          </div>
+          <InteractiveCards />
         </div>
       </section>
 
@@ -529,12 +1076,10 @@ useEffect(() => {
           animation: float 6s ease-in-out infinite;
         }
         
-        /* Smooth scroll behavior */
         html {
           scroll-behavior: smooth;
         }
         
-        /* Responsive video layout styles */
         @media (max-width: 768px) {
           video {
             object-fit: cover !important;
@@ -569,24 +1114,21 @@ useEffect(() => {
           }
         }
         
-       @media (min-width: 769px) {
-  .hero-text {
-    position: absolute !important;
-    left: 4rem !important;
-    top: 15% !important;  /* Changed from 50% to 40% to move it up */
-    text-align: left !important;
-    max-width: 600px !important;
-    /* REMOVED: transform: translateY(-50%) !important; */
-  }
-}
+        @media (min-width: 769px) {
+          .hero-text {
+            position: absolute !important;
+            left: 4rem !important;
+            top: 15% !important;
+            text-align: left !important;
+            max-width: 600px !important;
+          }
+        }
         
-        /* Focus states for accessibility */
         *:focus {
           outline: 2px solid #8b5cf6;
           outline-offset: 2px;
         }
         
-        /* High contrast mode support */
         @media (prefers-contrast: high) {
           .bg-gradient-to-r {
             background: #000 !important;
@@ -594,7 +1136,6 @@ useEffect(() => {
           }
         }
         
-        /* Reduced motion support */
         @media (prefers-reduced-motion: reduce) {
           * {
             animation-duration: 0.01ms !important;
@@ -602,7 +1143,6 @@ useEffect(() => {
             transition-duration: 0.01ms !important;
           }
           
-          /* Disable GSAP animations for reduced motion */
           [data-gsap] {
             transform: none !important;
             opacity: 1 !important;
