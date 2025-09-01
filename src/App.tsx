@@ -5,6 +5,7 @@ import { ScrollTrigger } from 'gsap/ScrollTrigger';
 import { AuthProvider } from './contexts/AuthContext';
 import ProtectedRoute from './components/ProtectedRoute';
 import LandingPage from './pages/LandingPage';
+import NewLandingPage from './pages/NewLandingPage';
 import Login from './pages/Login';
 import Signup from './pages/Signup';
 import Dashboard from './pages/Dashboard';
@@ -25,7 +26,8 @@ function App() {
       <Router>
         <div className="min-h-screen bg-gray-900 text-white font-['Plus_Jakarta_Sans',_sans-serif]">
           <Routes>
-            <Route path="/" element={<LandingPage />} />
+            <Route path="/" element={<div className="bg-white"><NewLandingPage /></div>} />
+            <Route path="/old" element={<LandingPage />} />
             <Route path="/login" element={<Login />} />
             <Route path="/signup" element={<Signup />} />
             <Route path="/dashboard" element={
