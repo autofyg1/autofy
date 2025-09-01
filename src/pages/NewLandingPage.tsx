@@ -853,43 +853,39 @@ const NewLandingPage: React.FC = () => {
           ))}
         </div>
         
-        {/* Hero Text Container */}
-        <div className="relative z-20 px-6 max-w-2xl text-center md:text-left md:max-w-4xl md:-top-24 md:left-[-200px] hero-text">
-          <h1 className="text-4xl md:text-7xl font-extrabold leading-tight text-gray-900 transform -translate-y-16 md:-translate-y-32">
-            <span className="whitespace-nowrap">Automate Tasks</span>
-            <br />
-            <span className="bg-gradient-to-r from-pink-400 via-purple-400 to-blue-400 bg-clip-text text-transparent">
-              Effortlessly
-            </span>
-          </h1>
+             {/* Hero Text Container */}
+      <div className="relative z-20 px-4 sm:px-6 lg:px-8 w-full max-w-xs sm:max-w-md md:max-w-2xl lg:max-w-4xl xl:max-w-5xl mx-auto text-center md:text-left md:mx-0 md:absolute md:top-[15%] md:left-16 lg:left-20 xl:left-24 hero-text">
+        <h1 className="text-2xl sm:text-3xl md:text-5xl lg:text-6xl xl:text-7xl font-extrabold leading-tight text-gray-900 mb-4 md:mb-6">
+          <span className="block sm:inline">Automate Tasks</span>
+          <br className="hidden sm:block" />
+          <span className="bg-gradient-to-r from-pink-400 via-purple-400 to-blue-400 bg-clip-text text-transparent">
+            Effortlessly
+          </span>
+        </h1>
+        
+        <div className="transform transition-all duration-1000" style={{ transform: get3DTransform(0.1) }}>
+          <p className="text-sm sm:text-base md:text-lg lg:text-xl text-gray-900 mb-6 sm:mb-8 max-w-xs sm:max-w-md md:max-w-2xl leading-relaxed drop-shadow-lg mx-auto md:mx-0">
+            Transform your workflows with intelligent automation. Connect apps,
+            eliminate repetitive tasks, and focus on what truly matters.
+          </p>
           
-          <div
-            className="transform transition-all duration-1000"
-            style={{ transform: get3DTransform(0.1) }}
-          >
-            <p className="text-xl md:text-xl text-gray-900 mb-6 max-w-2xl leading-relaxed drop-shadow-lg mt-4">
-              Transform your workflows with intelligent automation. Connect apps,
-              eliminate repetitive tasks, and focus on what truly matters.
-            </p>
-            
-            <div className="flex flex-col sm:flex-row items-center sm:space-x-4 space-y-3 sm:space-y-0 mt-6 hero-buttons">
-              <Link
-                to="/signup"
-                className="group bg-gradient-to-r from-pink-500 to-purple-600 text-white px-6 py-3 rounded-xl font-semibold text-base hover:shadow-xl hover:scale-105 transition-all duration-300 flex items-center space-x-2"
-                onMouseEnter={() => setIsHovering(true)}
-                onMouseLeave={() => setIsHovering(false)}
-              >
-                <span>Get Started Free</span>
-                <ArrowRight
-                  className={`w-5 h-5 transition-transform duration-300 ${
-                    isHovering ? 'translate-x-1' : ''
-                  }`}
-                />
-              </Link>
-            </div>
+          <div className="flex flex-col sm:flex-row items-center justify-center md:justify-start sm:space-x-4 space-y-3 sm:space-y-0 hero-buttons">
+            <Link
+              to="/signup"
+              className="group bg-gradient-to-r from-pink-500 to-purple-600 text-white px-4 sm:px-6 py-2.5 sm:py-3 rounded-lg sm:rounded-xl font-semibold text-sm sm:text-base hover:shadow-xl hover:scale-105 transition-all duration-300 flex items-center space-x-2 w-full sm:w-auto justify-center"
+              onMouseEnter={() => setIsHovering(true)}
+              onMouseLeave={() => setIsHovering(false)}
+            >
+              <span>Get Started Free</span>
+              <ArrowRight
+                className={`w-4 h-4 sm:w-5 sm:h-5 transition-transform duration-300 ${
+                  isHovering ? 'translate-x-1' : ''
+                }`}
+              />
+            </Link>
           </div>
         </div>
-
+      </div>
         {/* Scroll indicator */}
         <div className="absolute bottom-8 left-1/2 transform -translate-x-1/2 z-20">
           <div className="w-6 h-10 border-2 border-white/60 rounded-full flex justify-center">
@@ -1097,7 +1093,7 @@ const NewLandingPage: React.FC = () => {
           
           .hero-text {
             left: 0 !important;
-            top: 50% !important;
+            top: 5% !important;
             transform: translateY(-50%) !important;
             text-align: center !important;
             padding: 0 1rem !important;
