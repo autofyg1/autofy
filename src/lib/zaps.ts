@@ -151,6 +151,86 @@ export const getZap = async (zapId: string): Promise<{ data: Zap | null; error: 
   }
 };
 
+// Update an existing zap
+export const updateZap = async (zapId: string, config: ZapConfiguration): Promise<{ data: Zap | null; error: string | null }> => {
+  try {
+    // Get current user
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) {
+      throw new Error('User not authenticated');
+    }
+
+    // Check if there's AI processing in the workflow
+    const hasAiProcessing = config.steps.some(step => 
+      step.service_name === 'openrouter' && step.event_type === 'process_with_ai'
+    );
+
+    // Process steps to ensure Telegram message templates are generated
+    const processedSteps = config.steps.map(step => {
+      if (step.service_name === 'telegram' && step.event_type === 'send_message' && step.configuration.message_title) {
+        // Generate the message template if not already present
+        if (!step.configuration.message_template) {
+          step.configuration.message_template = generateTelegramMessageTemplate(
+            step.configuration.message_title,
+            hasAiProcessing
+          );
+        }
+      }
+      return step;
+    });
+
+    // Update the zap details
+    const { data: zapData, error: zapError } = await supabase
+      .from('zaps')
+      .update({
+        name: config.name,
+        description: config.description || '',
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', zapId)
+      .eq('user_id', user.id)  // Ensure user can only update their own zaps
+      .select()
+      .single();
+
+    if (zapError) throw zapError;
+
+    // Delete existing steps
+    const { error: deleteError } = await supabase
+      .from('zap_steps')
+      .delete()
+      .eq('zap_id', zapId);
+
+    if (deleteError) throw deleteError;
+
+    // Insert new steps
+    const stepsToInsert = processedSteps.map((step, index) => ({
+      zap_id: zapId,
+      step_order: index,
+      step_type: step.step_type,
+      service_name: step.service_name,
+      event_type: step.event_type,
+      configuration: step.configuration
+    }));
+
+    const { data: stepsData, error: stepsError } = await supabase
+      .from('zap_steps')
+      .insert(stepsToInsert)
+      .select();
+
+    if (stepsError) throw stepsError;
+
+    return {
+      data: { ...zapData, steps: stepsData },
+      error: null
+    };
+  } catch (error) {
+    return {
+      data: null,
+      error: error instanceof Error ? error.message : 'Failed to update zap'
+    };
+  }
+};
+
 // Update zap status (activate/deactivate)
 export const updateZapStatus = async (zapId: string, isActive: boolean): Promise<{ error: string | null }> => {
   try {

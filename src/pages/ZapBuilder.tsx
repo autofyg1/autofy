@@ -39,10 +39,16 @@ interface Step {
 
 const ZapBuilder: React.FC = () => {
   const builderRef = useRef<HTMLDivElement>(null);
+  const hasLoadedRef = useRef(false);
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const { createZap } = useZaps();
+  const { createZap, updateZap, getZap } = useZaps();
   const { integrations, isConnected } = useIntegrations();
+  
+  // Edit mode state
+  const editZapId = searchParams.get('edit');
+  const isEditMode = !!editZapId;
+  const [loadingZap, setLoadingZap] = useState(isEditMode);
   
   const [steps, setSteps] = useState<Step[]>([
     { id: '1', type: 'trigger', isConfigured: false, configuration: {} },
@@ -67,32 +73,155 @@ const ZapBuilder: React.FC = () => {
     { name: 'Webhooks', icon: Settings, color: 'bg-gray-500' }
   ];
 
-  useEffect(() => {
-    if (builderRef.current) {
-      gsap.fromTo('.builder-step',
-        { x: -50, opacity: 0 },
-        { 
-          x: 0, 
-          opacity: 1,
-          duration: 0.6,
-          stagger: 0.2,
-          ease: "power2.out"
-        }
-      );
+  // Function to convert service name back to app name and get icon
+  const getAppFromServiceName = (serviceName: string) => {
+    const mappings: Record<string, string> = {
+      'gmail': 'Gmail',
+      'openrouter': 'AI Processing',
+      'notion': 'Notion',
+      'telegram': 'Telegram',
+      'slack': 'Slack',
+      'google calendar': 'Google Calendar',
+      'googlecalendar': 'Google Calendar',
+      'notifications': 'Notifications',
+      'google docs': 'Google Docs',
+      'googledocs': 'Google Docs',
+      'teams': 'Teams',
+      'webhooks': 'Webhooks'
+    };
+    
+    const appName = mappings[serviceName.toLowerCase()] || serviceName;
+    const app = apps.find(a => a.name === appName);
+    return {
+      name: appName,
+      icon: app?.icon || Settings
+    };
+  };
 
-      gsap.fromTo('.app-card',
-        { y: 30, opacity: 0 },
-        { 
-          y: 0, 
-          opacity: 1,
-          duration: 0.4,
-          stagger: 0.1,
-          ease: "power2.out",
-          delay: 0.3
+  // Reset loading state when editZapId changes
+  useEffect(() => {
+    hasLoadedRef.current = false;
+  }, [editZapId]);
+
+  // Load existing zap data for edit mode
+  useEffect(() => {
+    const loadZapForEdit = async () => {
+      if (!isEditMode || !editZapId || hasLoadedRef.current) {
+        setLoadingZap(false);
+        return;
+      }
+      
+      hasLoadedRef.current = true;
+
+      // Set a timeout to prevent infinite loading
+      const timeoutId = setTimeout(() => {
+        console.error('Zap loading timed out');
+        setError('Loading timed out. The workflow might not exist or there may be a connection issue.');
+        setLoadingZap(false);
+      }, 10000); // 10 second timeout
+
+      try {
+        console.log('Loading zap for edit:', editZapId);
+        setLoadingZap(true);
+        setError(null); // Clear any previous errors
+        
+        const { data, error } = await getZap(editZapId);
+        console.log('getZap result:', { data, error });
+        
+        // Clear timeout since we got a response
+        clearTimeout(timeoutId);
+        
+        if (error) {
+          console.error('Error loading zap:', error);
+          setError(`Failed to load workflow: ${error}`);
+          return;
         }
-      );
+
+        if (data) {
+          console.log('Loading zap data:', data);
+          // Populate form fields
+          setZapName(data.name || '');
+          setZapDescription(data.description || '');
+          
+          // Convert zap steps to builder steps
+          if (data.steps && data.steps.length > 0) {
+            console.log('Processing steps:', data.steps);
+            const sortedSteps = data.steps.sort((a, b) => a.step_order - b.step_order);
+            const builderSteps: Step[] = sortedSteps.map((zapStep, index) => {
+              const appInfo = getAppFromServiceName(zapStep.service_name);
+              console.log('Processing step:', zapStep.service_name, '-> app:', appInfo.name);
+              return {
+                id: zapStep.id,
+                type: zapStep.step_type,
+                app: appInfo.name,
+                event: zapStep.event_type,
+                icon: appInfo.icon,
+                isConfigured: true,
+                configuration: zapStep.configuration
+              };
+            });
+            setSteps(builderSteps);
+            console.log('Final builder steps:', builderSteps);
+          } else {
+            console.log('No steps found in zap data');
+            // Keep default steps if no steps in the zap
+          }
+        } else {
+          console.log('No zap data returned');
+          setError('Workflow not found');
+        }
+      } catch (err) {
+        clearTimeout(timeoutId);
+        console.error('Exception loading zap:', err);
+        setError(err instanceof Error ? err.message : 'Failed to load zap for editing');
+      } finally {
+        setLoadingZap(false);
+        console.log('Finished loading zap, loadingZap set to false');
+      }
+    };
+
+    loadZapForEdit();
+  }, [isEditMode, editZapId, getZap]);
+
+  useEffect(() => {
+    // Only run animations after content is loaded and not in loading state
+    if (builderRef.current && !loadingZap) {
+      // Use timeout to ensure DOM elements exist
+      const timer = setTimeout(() => {
+        const builderSteps = document.querySelectorAll('.builder-step');
+        const appCards = document.querySelectorAll('.app-card');
+        
+        if (builderSteps.length > 0) {
+          gsap.fromTo(builderSteps,
+            { x: -50, opacity: 0 },
+            { 
+              x: 0, 
+              opacity: 1,
+              duration: 0.6,
+              stagger: 0.2,
+              ease: "power2.out"
+            }
+          );
+        }
+
+        if (appCards.length > 0) {
+          gsap.fromTo(appCards,
+            { y: 30, opacity: 0 },
+            { 
+              y: 0, 
+              opacity: 1,
+              duration: 0.4,
+              stagger: 0.1,
+              ease: "power2.out",
+              delay: 0.3
+            }
+          );
+        }
+      }, 100);
+      
+      return () => clearTimeout(timer);
     }
-  }, []);
+  }, [loadingZap, steps]); // Re-run when loading state or steps change
 
   const configureStep = (stepId: string, app: string, icon: React.ElementType) => {
     let serviceName = app.toLowerCase().replace(/\s+/g, '');
@@ -213,18 +342,26 @@ const ZapBuilder: React.FC = () => {
         })
       };
 
-      const { data, error } = await createZap(zapConfig);
+      let result;
+      if (isEditMode && editZapId) {
+        result = await updateZap(editZapId, zapConfig);
+      } else {
+        result = await createZap(zapConfig);
+      }
+      
+      const { data, error } = result;
       
       if (error) {
         setError(error);
         return;
       }
 
-      // Redirect to dashboard with success message
-      navigate('/dashboard?created=true');
+      // Redirect to dashboard with appropriate success message
+      const successParam = isEditMode ? 'updated=true' : 'created=true';
+      navigate(`/dashboard?${successParam}`);
       
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to save zap');
+      setError(err instanceof Error ? err.message : `Failed to ${isEditMode ? 'update' : 'save'} zap`);
     } finally {
       setSaving(false);
     }
@@ -239,8 +376,12 @@ const ZapBuilder: React.FC = () => {
         <div className="bg-gray-800 border-b border-gray-700 px-8 py-6">
           <div className="flex items-center justify-between">
             <div>
-              <h1 className="text-2xl font-bold text-white">Zap Builder</h1>
-              <p className="text-gray-400 mt-1">Create your automation workflow</p>
+              <h1 className="text-2xl font-bold text-white">
+                {isEditMode ? 'Edit Workflow' : 'Zap Builder'}
+              </h1>
+              <p className="text-gray-400 mt-1">
+                {isEditMode ? 'Modify your automation workflow' : 'Create your automation workflow'}
+              </p>
             </div>
             <div className="flex items-center space-x-4">
   <button
@@ -249,7 +390,12 @@ const ZapBuilder: React.FC = () => {
     className="px-6 py-3 bg-green-600 hover:bg-green-700 text-white rounded-lg font-medium transition-colors duration-300 flex items-center space-x-2 disabled:opacity-50 disabled:cursor-not-allowed"
   >
     {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
-    <span>{saving ? 'Saving...' : 'Save & Activate'}</span>
+    <span>
+      {saving 
+        ? (isEditMode ? 'Updating...' : 'Saving...') 
+        : (isEditMode ? 'Update & Activate' : 'Save & Activate')
+      }
+    </span>
   </button>
 </div>
 
@@ -331,6 +477,18 @@ const ZapBuilder: React.FC = () => {
           {/* Builder Canvas */}
           <div ref={builderRef} className="flex-1 p-8">
             <div className="max-w-4xl mx-auto">
+              {/* Loading state for edit mode */}
+              {loadingZap && (
+                <div className="flex items-center justify-center h-64">
+                  <div className="text-center">
+                    <Loader2 className="w-8 h-8 animate-spin mx-auto mb-4 text-blue-400" />
+                    <p className="text-gray-400">Loading workflow for editing...</p>
+                  </div>
+                </div>
+              )}
+              
+              {!loadingZap && (
+                <>
               {/* Zap Details */}
               <div className="mb-8 p-6 bg-gray-800 rounded-xl border border-gray-700">
                 <h2 className="text-xl font-semibold text-white mb-4">Zap Details</h2>
@@ -480,7 +638,12 @@ const ZapBuilder: React.FC = () => {
                   className="px-8 py-3 bg-gradient-to-r from-blue-500 to-violet-500 text-white rounded-lg font-medium hover:scale-105 transition-transform duration-300 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100 flex items-center space-x-2"
                 >
                   {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
-                  <span>{saving ? 'Saving Zap...' : 'Save & Activate Zap'}</span>
+                  <span>
+                    {saving 
+                      ? (isEditMode ? 'Updating Zap...' : 'Saving Zap...') 
+                      : (isEditMode ? 'Update & Activate Zap' : 'Save & Activate Zap')
+                    }
+                  </span>
                 </button>
                 <button 
                   onClick={() => navigate('/dashboard')}
@@ -489,6 +652,8 @@ const ZapBuilder: React.FC = () => {
                   Cancel
                 </button>
               </div>
+                </>
+              )}
             </div>
           </div>
         </div>

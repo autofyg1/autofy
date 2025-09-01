@@ -1,5 +1,5 @@
-import { useState, useEffect } from 'react';
-import { getUserZaps, createZap, updateZapStatus, deleteZap, Zap, ZapConfiguration } from '../lib/zaps';
+import { useState, useEffect, useCallback } from 'react';
+import { getUserZaps, createZap, updateZap, updateZapStatus, deleteZap, getZap, Zap, ZapConfiguration } from '../lib/zaps';
 import { useAuth } from '../contexts/AuthContext';
 
 export const useZaps = () => {
@@ -73,6 +73,39 @@ export const useZaps = () => {
     }
   };
 
+  const fetchZap = useCallback(async (zapId: string) => {
+    try {
+      const { data, error } = await getZap(zapId);
+      
+      if (error) throw new Error(error);
+      
+      return { data, error: null };
+    } catch (err) {
+      return {
+        data: null,
+        error: err instanceof Error ? err.message : 'Failed to fetch zap'
+      };
+    }
+  }, []);
+
+  const updateExistingZap = async (zapId: string, config: ZapConfiguration) => {
+    try {
+      const { data, error } = await updateZap(zapId, config);
+      
+      if (error) throw new Error(error);
+      
+      if (data) {
+        setZaps(prev => prev.map(z => z.id === zapId ? data : z));
+      }
+      
+      return { data, error: null };
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Failed to update zap';
+      setError(errorMessage);
+      return { data: null, error: errorMessage };
+    }
+  };
+
   useEffect(() => {
     fetchZaps();
   }, [user]);
@@ -82,8 +115,11 @@ export const useZaps = () => {
     loading,
     error,
     createZap: createNewZap,
+    updateZap: updateExistingZap,
     toggleZapStatus,
     deleteZap: removeZap,
-    refetch: fetchZaps
+    getZap: fetchZap,
+    refetch: fetchZaps,
+    refreshZaps: fetchZaps
   };
 };
