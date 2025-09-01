@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { gsap } from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
 
+
 // Register GSAP plugins
 gsap.registerPlugin(ScrollTrigger);
 import { 
@@ -833,7 +834,7 @@ const NewLandingPage: React.FC = () => {
           </video>
           
           {/* Video overlay for better text visibility */}
-          <div className="absolute inset-0 bg-gradient-to-b from-black/60 via-black/50 to-black/70"></div>
+
         </div>
 
         {/* Animated particles */}
@@ -854,7 +855,7 @@ const NewLandingPage: React.FC = () => {
         
         {/* Hero Text Container */}
         <div className="relative z-20 px-6 max-w-2xl text-center md:text-left md:max-w-4xl md:-top-24 md:left-[-200px] hero-text">
-          <h1 className="text-4xl md:text-7xl font-extrabold leading-tight text-white transform -translate-y-16 md:-translate-y-32">
+          <h1 className="text-4xl md:text-7xl font-extrabold leading-tight text-gray-900 transform -translate-y-16 md:-translate-y-32">
             <span className="whitespace-nowrap">Automate Tasks</span>
             <br />
             <span className="bg-gradient-to-r from-pink-400 via-purple-400 to-blue-400 bg-clip-text text-transparent">
@@ -866,7 +867,7 @@ const NewLandingPage: React.FC = () => {
             className="transform transition-all duration-1000"
             style={{ transform: get3DTransform(0.1) }}
           >
-            <p className="text-xl md:text-xl text-white/90 mb-6 max-w-2xl leading-relaxed drop-shadow-lg mt-4">
+            <p className="text-xl md:text-xl text-gray-900 mb-6 max-w-2xl leading-relaxed drop-shadow-lg mt-4">
               Transform your workflows with intelligent automation. Connect apps,
               eliminate repetitive tasks, and focus on what truly matters.
             </p>
@@ -1057,11 +1058,18 @@ const NewLandingPage: React.FC = () => {
       </footer>
 
       <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap');
+     @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&display=swap');
         
-        .font-inter {
-          font-family: 'Inter', sans-serif;
+        .font-space-grotesk {
+          font-family: 'Space Grotesk', sans-serif;
         }
+        
+        /* Remove the old Inter font styles */
+        .font-inter {
+          font-family: 'Space Grotesk', sans-serif;
+        }
+        
+       
         
         @keyframes float {
           0%, 100% {
