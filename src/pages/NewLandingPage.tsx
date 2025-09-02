@@ -3,7 +3,6 @@ import { Link } from 'react-router-dom';
 import { gsap } from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
 
-
 // Register GSAP plugins
 gsap.registerPlugin(ScrollTrigger);
 import { 
@@ -21,6 +20,7 @@ import {
   Users
 } from 'lucide-react';
 import WorkflowDemo from '../components/WorkflowDemo';
+import { AIWorkflowAutomation } from '../components/animated-card';
 
 // Utility function for class names
 const cn = (...classes: (string | undefined | null | false)[]): string => {
@@ -50,7 +50,7 @@ function CardBody({ className, ...props }: CardProps) {
     <div
       role="group"
       className={cn(
-        "flex flex-col space-y-3 border-t border-gray-200/30 p-6",
+        "flex flex-col space-y-3 border-t border-gray-200/30 p-6 ",
         className
       )}
       {...props}
@@ -89,7 +89,7 @@ function CardDescription({ className, ...props }: CardDescriptionProps) {
 function CardVisual({ className, ...props }: CardProps) {
   return (
     <div
-      className={cn("h-[200px] w-[380px] overflow-hidden", className)}
+      className={cn("h-[200px] w-[480px] overflow-hidden", className)}
       {...props}
     />
   )
@@ -382,7 +382,6 @@ const DataFlowVisual: React.FC<VisualProps> = ({
   )
 }
 
-// Visual 3: Workflow Builder
 // Visual 3: Workflow Builder - UPDATED
 const WorkflowBuilderVisual: React.FC<VisualProps> = ({
   mainColor = "#6366f1",
@@ -531,7 +530,7 @@ const IntegrationNetworkVisual: React.FC<VisualProps> = ({
         onMouseEnter={() => setHovered(true)}
         onMouseLeave={() => setHovered(false)}
       />
-      <div className="relative h-[200px] w-[380px] overflow-hidden rounded-t-2xl">
+      <div className="relative h-[200px] w-[480px] overflow-hidden rounded-t-2xl">
         {/* Connection Lines */}
         <svg className="absolute inset-0 z-[6] h-full w-full">
           {integrations.map((node, i) =>
@@ -622,6 +621,22 @@ function InteractiveCards() {
             </AnimatedCard>
           ))}
         </div>
+
+        {/* AI Workflow Automation Card - Added below the other cards */}
+        <div className="mt-16 flex justify-center ">
+          <AnimatedCard className="hover:shadow-2xl hover:shadow-purple-500/20 transition-all duration-500 ai-workflow-card">
+            <CardVisual>
+              <AIWorkflowAutomation />
+            </CardVisual>
+            <CardBody>
+              <CardTitle>Smart Workflow Creator<br></br><span className='text-sm text-gray-700'>[Upcoming feature]</span></CardTitle>
+              <CardDescription>
+                Watch as AI transforms your simple text prompt into a complete automated workflow. 
+                Hover above to see the step-by-step process unfold in real-time.
+              </CardDescription>
+            </CardBody>
+          </AnimatedCard>
+        </div>
       </div>
     </div>
   )
@@ -654,6 +669,7 @@ const NewLandingPage: React.FC = () => {
     gsap.set(".hero-buttons", { y: 50, opacity: 0 });
     gsap.set(".workflow-content", { y: 80, opacity: 0 });
     gsap.set(".feature-card", { y: 60, opacity: 0, scale: 0.8 });
+    gsap.set(".ai-workflow-card", { y: 80, opacity: 0, scale: 0.8 });
     gsap.set(".integration-item", { y: 30, opacity: 0 });
     gsap.set(".stats-item", { y: 40, opacity: 0 });
     
@@ -710,6 +726,20 @@ const NewLandingPage: React.FC = () => {
           trigger: featuresRef.current,
           start: "top 75%",
           end: "bottom 25%",
+          toggleActions: "play none none reverse"
+        }
+      });
+
+      // AI Workflow Card animation with delay
+      gsap.to(".ai-workflow-card", {
+        y: 0,
+        opacity: 1,
+        scale: 1,
+        duration: 1,
+        ease: "back.out(1.7)",
+        scrollTrigger: {
+          trigger: ".ai-workflow-card",
+          start: "top 85%",
           toggleActions: "play none none reverse"
         }
       });
@@ -972,7 +1002,7 @@ const NewLandingPage: React.FC = () => {
           </div>
 
           <div className="mt-16">
-            <p className="text-gray-500 mb-8">And 1000+ more integrations</p>
+            <p className="text-gray-500 mb-8">And 100+ more integrations</p>
             <Link
               to="/signup"
               className="inline-flex items-center space-x-2 bg-gray-900 text-white px-8 py-4 rounded-xl font-semibold hover:bg-gray-800 hover:scale-105 transition-all duration-300"
