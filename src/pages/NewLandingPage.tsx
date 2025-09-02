@@ -20,7 +20,7 @@ import {
   Users
 } from 'lucide-react';
 import WorkflowDemo from '../components/WorkflowDemo';
-import { AIWorkflowAutomation } from '../components/animated-card';
+import { AIWorkflowAutomation } from '../components/Animated-card';
 
 // Utility function for class names
 const cn = (...classes: (string | undefined | null | false)[]): string => {
