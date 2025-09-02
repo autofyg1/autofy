@@ -530,7 +530,7 @@ const IntegrationNetworkVisual: React.FC<VisualProps> = ({
         onMouseEnter={() => setHovered(true)}
         onMouseLeave={() => setHovered(false)}
       />
-      <div className="relative h-[200px] w-[480px] overflow-hidden rounded-t-2xl">
+      <div className="relative h-[200px] w-[380px] overflow-hidden rounded-t-2xl">
         {/* Connection Lines */}
         <svg className="absolute inset-0 z-[6] h-full w-full">
           {integrations.map((node, i) =>
