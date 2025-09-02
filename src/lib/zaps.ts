@@ -555,3 +555,148 @@ export const generateTelegramMessageTemplate = (title: string, hasAiProcessing: 
     `${contentVariable}\n\n` +
     `<i>⚡ Automated by Autofy</i>`;
 };
+
+// Import a zap from JSON file
+export const importZapFromJson = async (file: File): Promise<{ data: Zap | null; error: string | null }> => {
+  try {
+    // Get current user session
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) {
+      throw new Error('User not authenticated');
+    }
+
+    // Create form data
+    const formData = new FormData();
+    formData.append('file', file);
+
+    // Call the import edge function
+    const response = await fetch(`${supabase.supabaseUrl}/functions/v1/zap-import`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${session.access_token}`,
+      },
+      body: formData
+    });
+
+    const result = await response.json();
+
+    if (!response.ok) {
+      throw new Error(result.error || 'Failed to import zap');
+    }
+
+    return {
+      data: result.zap,
+      error: null
+    };
+  } catch (error) {
+    return {
+      data: null,
+      error: error instanceof Error ? error.message : 'Failed to import zap from JSON'
+    };
+  }
+};
+
+// Import a zap from JSON object (for direct JSON payload)
+export const importZapFromJsonData = async (zapData: ZapConfiguration): Promise<{ data: Zap | null; error: string | null }> => {
+  try {
+    // Get current user session
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) {
+      throw new Error('User not authenticated');
+    }
+
+    // Call the import edge function with JSON payload
+    const response = await fetch(`${supabase.supabaseUrl}/functions/v1/zap-import`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${session.access_token}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(zapData)
+    });
+
+    const result = await response.json();
+
+    if (!response.ok) {
+      throw new Error(result.error || 'Failed to import zap');
+    }
+
+    return {
+      data: result.zap,
+      error: null
+    };
+  } catch (error) {
+    return {
+      data: null,
+      error: error instanceof Error ? error.message : 'Failed to import zap from JSON data'
+    };
+  }
+};
+
+// Validate JSON file before upload
+export const validateJsonFile = (file: File): { valid: boolean; error?: string } => {
+  // Check file type
+  if (!file.name.endsWith('.json') && file.type !== 'application/json') {
+    return { valid: false, error: 'File must be a JSON file (.json)' };
+  }
+
+  // Check file size (max 1MB)
+  if (file.size > 1024 * 1024) {
+    return { valid: false, error: 'File size must be less than 1MB' };
+  }
+
+  return { valid: true };
+};
+
+// Parse and validate JSON content (client-side validation)
+export const parseJsonFile = async (file: File): Promise<{ data: any; error?: string }> => {
+  try {
+    const text = await file.text();
+    const data = JSON.parse(text);
+    
+    // Basic validation
+    if (!data.name || typeof data.name !== 'string') {
+      return { data: null, error: 'JSON must contain a "name" field with a string value' };
+    }
+    
+    if (!Array.isArray(data.steps) || data.steps.length === 0) {
+      return { data: null, error: 'JSON must contain a "steps" array with at least one step' };
+    }
+    
+    return { data };
+  } catch (error) {
+    return { data: null, error: 'Invalid JSON format' };
+  }
+};
+
+// Export a zap to JSON format
+export const exportZapToJson = (zap: Zap): string => {
+  const zapConfig: ZapConfiguration = {
+    name: zap.name,
+    description: zap.description,
+    steps: (zap.steps || []).map(step => ({
+      step_type: step.step_type,
+      service_name: step.service_name,
+      event_type: step.event_type,
+      configuration: step.configuration
+    }))
+  };
+  
+  return JSON.stringify(zapConfig, null, 2);
+};
+
+// Download a zap as JSON file
+export const downloadZapAsJson = (zap: Zap): void => {
+  const jsonString = exportZapToJson(zap);
+  const blob = new Blob([jsonString], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `${zap.name.replace(/[^a-z0-9]/gi, '_').toLowerCase()}_zap.json`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  
+  URL.revokeObjectURL(url);
+};
