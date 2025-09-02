@@ -89,7 +89,7 @@ function CardDescription({ className, ...props }: CardDescriptionProps) {
 function CardVisual({ className, ...props }: CardProps) {
   return (
     <div
-      className={cn("h-[200px] w-[480px] overflow-hidden", className)}
+      className={cn("h-[200px] w-[380px] overflow-hidden", className)}
       {...props}
     />
   )
