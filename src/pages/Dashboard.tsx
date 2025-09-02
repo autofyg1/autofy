@@ -3,7 +3,9 @@ import { Link, useSearchParams } from 'react-router-dom';
 import { ReactFlow, Background, Node, Edge, Position, Handle } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
 import Sidebar from '../components/Sidebar';
+import ZapJsonUpload from '../components/ZapJsonUpload';
 import { useZaps } from '../hooks/useZaps';
+import { downloadZapAsJson } from '../lib/zaps';
 import { 
   Plus, 
   Play, 
@@ -30,7 +32,10 @@ import {
   Send,
   Brain,
   Sparkles,
-  RefreshCw
+  RefreshCw,
+  Upload,
+  Download,
+  X
 } from 'lucide-react';
 
 // Service icons and colors - simplified
@@ -281,6 +286,14 @@ const WorkflowCard = React.memo(({ zap, onToggle, onDelete }: {
             </Link>
             
             <button
+              onClick={() => downloadZapAsJson(zap)}
+              className="p-3 rounded-xl bg-purple-500/20 text-purple-300 border border-purple-400/30 hover:opacity-80"
+              title="Export as JSON"
+            >
+              <Download className="w-5 h-5" />
+            </button>
+            
+            <button
               onClick={handleDeleteClick}
               className="p-3 rounded-xl bg-red-500/20 text-red-300 border border-red-400/30 hover:opacity-80"
               title="Delete Workflow"
@@ -373,8 +386,11 @@ const WorkflowCard = React.memo(({ zap, onToggle, onDelete }: {
 const Dashboard: React.FC = () => {
   const fabRef = useRef<HTMLAnchorElement>(null);
   const [searchParams] = useSearchParams();
-  const { zaps, loading, error, toggleZapStatus, deleteZap, refreshZaps } = useZaps();
+  const { zaps, loading, error, toggleZapStatus, deleteZap, refreshZaps, importZap } = useZaps();
   const [showSuccessMessage, setShowSuccessMessage] = useState(false);
+  const [showImportModal, setShowImportModal] = useState(false);
+  const [importLoading, setImportLoading] = useState(false);
+  const [importSuccess, setImportSuccess] = useState(false);
 
   useEffect(() => {
     if (searchParams.get('created') === 'true' || searchParams.get('updated') === 'true') {
@@ -395,6 +411,35 @@ const Dashboard: React.FC = () => {
     refreshZaps();
   }, [refreshZaps]);
 
+  const handleImport = useCallback(async (file: File) => {
+    setImportLoading(true);
+    try {
+      const result = await importZap(file);
+      if (result.error) {
+        throw new Error(result.error);
+      }
+      
+      setImportSuccess(true);
+      setShowImportModal(false);
+      
+      // Show success message
+      setTimeout(() => setImportSuccess(false), 5000);
+      
+      return { data: result.data, error: null };
+    } catch (error) {
+      return { 
+        data: null, 
+        error: error instanceof Error ? error.message : 'Import failed' 
+      };
+    } finally {
+      setImportLoading(false);
+    }
+  }, [importZap]);
+
+  const closeImportModal = useCallback(() => {
+    setShowImportModal(false);
+  }, []);
+
   return (
     <div className="flex min-h-screen bg-gray-900">
       <Sidebar />
@@ -402,12 +447,14 @@ const Dashboard: React.FC = () => {
       <div className="flex-1 flex flex-col">
         {/* Simplified Header */}
         <div className="bg-gray-800 border-b border-gray-700 px-8 py-6 flex-shrink-0">
-          {showSuccessMessage && (
+          {(showSuccessMessage || importSuccess) && (
             <div className="mb-6 p-4 bg-green-500/10 border border-green-400/30 rounded-xl">
               <div className="flex items-center space-x-3">
                 <CheckCircle className="w-5 h-5 text-green-400" />
                 <p className="text-green-300 font-medium">
-                  {searchParams.get('updated') === 'true' 
+                  {importSuccess
+                    ? 'Zap imported successfully!'
+                    : searchParams.get('updated') === 'true' 
                     ? 'Workflow updated successfully!' 
                     : 'Workflow created successfully!'
                   }
@@ -432,15 +479,26 @@ const Dashboard: React.FC = () => {
                 <p className="text-gray-400">Manage your automation workflows</p>
               </div>
               
-              <button
-                onClick={handleRefresh}
-                disabled={loading}
-                className="flex items-center gap-2 px-4 py-2 bg-blue-500/20 text-blue-300 hover:bg-blue-500/30 rounded-lg border border-blue-400/30"
-                title="Refresh Workflows"
-              >
-                <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
-                <span className="text-sm font-medium">Refresh</span>
-              </button>
+              <div className="flex items-center gap-3">
+                <button
+                  onClick={handleRefresh}
+                  disabled={loading}
+                  className="flex items-center gap-2 px-4 py-2 bg-blue-500/20 text-blue-300 hover:bg-blue-500/30 rounded-lg border border-blue-400/30"
+                  title="Refresh Workflows"
+                >
+                  <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
+                  <span className="text-sm font-medium">Refresh</span>
+                </button>
+                
+                <button
+                  onClick={() => setShowImportModal(true)}
+                  className="flex items-center gap-2 px-4 py-2 bg-purple-500/20 text-purple-300 hover:bg-purple-500/30 rounded-lg border border-purple-400/30"
+                  title="Import Zap from JSON"
+                >
+                  <Upload className="w-4 h-4" />
+                  <span className="text-sm font-medium">Import JSON</span>
+                </button>
+              </div>
             </div>
 
             <div className="flex items-center space-x-4">
@@ -495,15 +553,24 @@ const Dashboard: React.FC = () => {
                   </div>
                   <h3 className="text-xl font-bold text-white mb-4">No Workflows Yet</h3>
                   <p className="text-gray-400 mb-6">
-                    Create your first automation workflow
+                    Create your first automation workflow or import an existing one
                   </p>
-                  <Link
-                    to="/builder"
-                    className="inline-flex items-center gap-2 bg-blue-500 px-6 py-3 rounded-lg font-medium text-white hover:bg-blue-600"
-                  >
-                    <Plus className="w-5 h-5" />
-                    Create Your First Workflow
-                  </Link>
+                  <div className="flex items-center gap-4 justify-center">
+                    <Link
+                      to="/builder"
+                      className="inline-flex items-center gap-2 bg-blue-500 px-6 py-3 rounded-lg font-medium text-white hover:bg-blue-600"
+                    >
+                      <Plus className="w-5 h-5" />
+                      Create Workflow
+                    </Link>
+                    <button
+                      onClick={() => setShowImportModal(true)}
+                      className="inline-flex items-center gap-2 bg-purple-500 px-6 py-3 rounded-lg font-medium text-white hover:bg-purple-600"
+                    >
+                      <Upload className="w-5 h-5" />
+                      Import JSON
+                    </button>
+                  </div>
                 </div>
               </div>
             )}
@@ -520,6 +587,19 @@ const Dashboard: React.FC = () => {
           <Plus className="w-6 h-6 text-white" />
         </Link>
       </div>
+
+      {/* Import Modal */}
+      {showImportModal && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-gray-900 rounded-2xl border border-gray-600/30 max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+            <ZapJsonUpload
+              onImport={handleImport}
+              isLoading={importLoading}
+              onClose={closeImportModal}
+            />
+          </div>
+        </div>
+      )}
     </div>
   );
 };

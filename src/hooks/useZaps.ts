@@ -1,5 +1,15 @@
 import { useState, useEffect, useCallback } from 'react';
-import { getUserZaps, createZap, updateZap, updateZapStatus, deleteZap, getZap, Zap, ZapConfiguration } from '../lib/zaps';
+import { 
+  getUserZaps, 
+  createZap, 
+  updateZap, 
+  updateZapStatus, 
+  deleteZap, 
+  getZap, 
+  importZapFromJson,
+  Zap, 
+  ZapConfiguration 
+} from '../lib/zaps';
 import { useAuth } from '../contexts/AuthContext';
 
 export const useZaps = () => {
@@ -106,6 +116,25 @@ export const useZaps = () => {
     }
   };
 
+  const importZap = async (file: File) => {
+    try {
+      setError(null);
+      const { data, error } = await importZapFromJson(file);
+      
+      if (error) throw new Error(error);
+      
+      if (data) {
+        setZaps(prev => [data, ...prev]);
+      }
+      
+      return { data, error: null };
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Failed to import zap';
+      setError(errorMessage);
+      return { data: null, error: errorMessage };
+    }
+  };
+
   useEffect(() => {
     fetchZaps();
   }, [user]);
@@ -119,6 +148,7 @@ export const useZaps = () => {
     toggleZapStatus,
     deleteZap: removeZap,
     getZap: fetchZap,
+    importZap,
     refetch: fetchZaps,
     refreshZaps: fetchZaps
   };
