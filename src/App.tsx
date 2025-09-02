@@ -12,6 +12,7 @@ import Dashboard from './pages/Dashboard';
 import ZapBuilder from './pages/ZapBuilder';
 import Integrations from './pages/Integrations';
 import OAuthCallback from './pages/OAuthCallback';
+import WorkflowBotDemo from './pages/WorkflowBotDemo';
 
 gsap.registerPlugin(ScrollTrigger);
 
@@ -48,6 +49,11 @@ function App() {
             <Route path="/oauth/callback/:service" element={
               <ProtectedRoute>
                 <OAuthCallback />
+              </ProtectedRoute>
+            } />
+            <Route path="/bot" element={
+              <ProtectedRoute>
+                <WorkflowBotDemo />
               </ProtectedRoute>
             } />
           </Routes>

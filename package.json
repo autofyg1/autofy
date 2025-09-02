@@ -12,7 +12,7 @@
  "dependencies": {
   "@react-three/drei": "^9.122.0",
   "@react-three/fiber": "^8.18.0",
-  "@supabase/supabase-js": "^2.53.0",
+  "@supabase/supabase-js": "^2.56.1",
   "@types/react-router-dom": "^5.3.3",
   "@xyflow/react": "^12.8.3",
   "clsx": "^2.1.1",

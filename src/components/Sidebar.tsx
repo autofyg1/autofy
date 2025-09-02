@@ -1,7 +1,7 @@
 import React, { useEffect, useRef } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { gsap } from 'gsap';
-import { Zap, Home, Plus, Grid3X3, Settings, BarChart3 } from 'lucide-react';
+import { Zap, Home, Plus, Grid3X3, Settings, BarChart3, Bot } from 'lucide-react';
 
 const Sidebar: React.FC = () => {
   const sidebarRef = useRef<HTMLDivElement>(null);
@@ -19,6 +19,7 @@ const Sidebar: React.FC = () => {
   const menuItems = [
     { icon: Home, label: 'Dashboard', path: '/dashboard' },
     { icon: Plus, label: 'Create Zap', path: '/builder' },
+    { icon: Bot, label: 'AI Bot', path: '/bot' },
     { icon: Grid3X3, label: 'Integrations', path: '/integrations' },
     { icon: BarChart3, label: 'Analytics', path: '/analytics' },
     { icon: Settings, label: 'Settings', path: '/settings' },
