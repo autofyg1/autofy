@@ -1,0 +1,65 @@
+{
+  "timestamp": "2025-09-03T07:38:36.721Z",
+  "totalTests": 9,
+  "passedTests": 9,
+  "failedTests": 0,
+  "successRate": 100,
+  "results": [
+    {
+      "filename": "4_workflow_zap_zap.json",
+      "passed": true,
+      "errors": [],
+      "warnings": []
+    },
+    {
+      "filename": "ai_check_this_zap_telegram_zap.json",
+      "passed": true,
+      "errors": [],
+      "warnings": []
+    },
+    {
+      "filename": "final_zap.json",
+      "passed": true,
+      "errors": [],
+      "warnings": []
+    },
+    {
+      "filename": "gmail_reply__zap.json",
+      "passed": true,
+      "errors": [],
+      "warnings": []
+    },
+    {
+      "filename": "gmail_to_notion_check_zap.json",
+      "passed": true,
+      "errors": [],
+      "warnings": []
+    },
+    {
+      "filename": "sample_zap.json",
+      "passed": true,
+      "errors": [],
+      "warnings": [
+        "Email body template seems too simple, consider adding dynamic content"
+      ]
+    },
+    {
+      "filename": "spam_check_zap.json",
+      "passed": true,
+      "errors": [],
+      "warnings": []
+    },
+    {
+      "filename": "telegram_check_zap.json",
+      "passed": true,
+      "errors": [],
+      "warnings": []
+    },
+    {
+      "filename": "vip_email_zap.json",
+      "passed": true,
+      "errors": [],
+      "warnings": []
+    }
+  ]
+}

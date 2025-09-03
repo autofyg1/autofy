@@ -1,0 +1,41 @@
+{
+  "name": "gmail reply ",
+  "description": "",
+  "steps": [
+    {
+      "step_type": "trigger",
+      "service_name": "gmail",
+      "event_type": "new_email",
+      "configuration": {
+        "keywords": "Invitation",
+        "from_email": "bansalyugal3@gmail.com"
+      }
+    },
+    {
+      "step_type": "action",
+      "service_name": "openrouter",
+      "event_type": "process_with_ai",
+      "configuration": {
+        "model": "meta-llama/llama-3.2-3b-instruct:free",
+        "prompt": "Analyse the user needs and generate a perfect reply for the user."
+      }
+    },
+    {
+      "step_type": "action",
+      "service_name": "gmail",
+      "event_type": "send_reply",
+      "configuration": {
+        "body_template": "{{ai_content}}\nBest Regards \nHp Team"
+      }
+    },
+    {
+      "step_type": "action",
+      "service_name": "notion",
+      "event_type": "create_page",
+      "configuration": {
+        "database_id": "241bbd9669da80e9bb6dc1d6a27c68ee",
+        "title_template": "gmail to gmail via notion"
+      }
+    }
+  ]
+}

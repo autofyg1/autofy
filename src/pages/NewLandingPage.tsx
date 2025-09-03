@@ -7,9 +7,9 @@ import { ScrollTrigger } from 'gsap/ScrollTrigger';
 gsap.registerPlugin(ScrollTrigger);
 
 // Import ALL required icons
-import { 
-  ArrowRight, 
-  Zap, 
+import {
+  ArrowRight,
+  Zap,
   Mail,
   MessageSquare,
   Calendar,
@@ -31,7 +31,7 @@ const cn = (...classes: (string | undefined | null | false)[]): string => {
 };
 
 // Card Components with proper TypeScript
-interface CardProps extends React.HTMLAttributes<HTMLDivElement> {}
+interface CardProps extends React.HTMLAttributes<HTMLDivElement> { }
 
 function AnimatedCard({ className, ...props }: CardProps) {
   return (
@@ -61,7 +61,7 @@ function CardBody({ className, ...props }: CardProps) {
   );
 }
 
-interface CardTitleProps extends React.HTMLAttributes<HTMLHeadingElement> {}
+interface CardTitleProps extends React.HTMLAttributes<HTMLHeadingElement> { }
 
 function CardTitle({ className, ...props }: CardTitleProps) {
   return (
@@ -75,7 +75,7 @@ function CardTitle({ className, ...props }: CardTitleProps) {
   );
 }
 
-interface CardDescriptionProps extends React.HTMLAttributes<HTMLParagraphElement> {}
+interface CardDescriptionProps extends React.HTMLAttributes<HTMLParagraphElement> { }
 
 function CardDescription({ className, ...props }: CardDescriptionProps) {
   return (
@@ -420,7 +420,7 @@ const WorkflowBuilderVisual: React.FC<VisualProps> = ({
         onMouseLeave={() => setHovered(false)}
       />
       <div className="relative h-[200px] w-[380px] overflow-hidden rounded-t-2xl bg-gradient-to-br from-indigo-50 via-white to-teal-50">
-        
+
         {/* Connecting Lines */}
         <svg className="absolute inset-0 z-[5] h-full w-full">
           {nodes.slice(0, -1).map((node, i) => (
@@ -481,8 +481,8 @@ const WorkflowBuilderVisual: React.FC<VisualProps> = ({
               </div>
               <span className={cn(
                 "mt-2 text-xs font-semibold transition-all duration-300",
-                hovered && i <= activeNode 
-                  ? "text-indigo-600" 
+                hovered && i <= activeNode
+                  ? "text-indigo-600"
                   : "text-gray-500"
               )}>
                 {node.label}
@@ -639,7 +639,7 @@ function InteractiveCards() {
                 <span className="text-sm text-gray-700">[Upcoming feature]</span>
               </CardTitle>
               <CardDescription>
-                Watch as AI transforms your simple text prompt into a complete automated workflow. 
+                Watch as AI transforms your simple text prompt into a complete automated workflow.
                 Hover above to see the step-by-step process unfold in real-time.
               </CardDescription>
             </CardBody>
@@ -671,7 +671,7 @@ const NewLandingPage: React.FC = () => {
   useEffect(() => {
     // Smooth scrolling setup
     gsap.config({ force3D: true });
-    
+
     // Set initial states for elements
     gsap.set(".hero-text h1", { y: 50, opacity: 0 });
     gsap.set(".hero-text p", { y: 50, opacity: 0 });
@@ -681,7 +681,7 @@ const NewLandingPage: React.FC = () => {
     gsap.set(".ai-workflow-card", { y: 80, opacity: 0, scale: 0.8 });
     gsap.set(".integration-item", { y: 30, opacity: 0 });
     gsap.set(".stats-item", { y: 40, opacity: 0 });
-    
+
     // Hero text animation
     if (heroRef.current) {
       const tl = gsap.timeline({ delay: 0.5 });
@@ -691,18 +691,18 @@ const NewLandingPage: React.FC = () => {
         duration: 1.2,
         ease: "power3.out"
       })
-      .to(".hero-text p", {
-        y: 0,
-        opacity: 1,
-        duration: 1,
-        ease: "power2.out"
-      }, "-=0.8")
-      .to(".hero-buttons", {
-        y: 0,
-        opacity: 1,
-        duration: 0.8,
-        ease: "power2.out"
-      }, "-=0.6");
+        .to(".hero-text p", {
+          y: 0,
+          opacity: 1,
+          duration: 1,
+          ease: "power2.out"
+        }, "-=0.8")
+        .to(".hero-buttons", {
+          y: 0,
+          opacity: 1,
+          duration: 0.8,
+          ease: "power2.out"
+        }, "-=0.6");
     }
 
     // Workflow section animation
@@ -810,15 +810,17 @@ const NewLandingPage: React.FC = () => {
     <div className="min-h-screen bg-white font-space-grotesk">
       {/* Navigation */}
       <nav className="fixed top-0 w-screen z-50 flex justify-center">
-        <div className="mt-4 bg-white/90 backdrop-blur-sm rounded-2xl shadow-lg border border-gray-200/50 px-6 py-3 flex items-center justify-between max-w-6xl mx-4 w-full">
-          
+        <div className="mt-4 bg-white/90 backdrop-blur-sm rounded-2xl shadow-lg border border-gray-200/50 px-6 py-1 flex items-center justify-between max-w-6xl mx-4 w-full h-16">
+
           {/* Left: Logo + Autofy */}
-          <div className="flex items-center space-x-2">
-            <div className="w-6 h-6 rounded bg-gradient-to-r from-violet-500 to-purple-600 flex items-center justify-center">
-              <Zap className="w-4 h-4 text-white" />
-            </div>
-            <span className="text-lg font-semibold text-gray-800">Autofy</span>
+          <div className="flex items-center">
+            <img
+              className="h-[35px] w-auto object-contain"
+              src="autofy_logo.png"
+              alt="Autofy Logo"
+            />
           </div>
+
 
           {/* Center: Links */}
           <div className="hidden md:flex items-center space-x-8">
@@ -839,32 +841,32 @@ const NewLandingPage: React.FC = () => {
           {/* Right: Auth Buttons */}
           <div className="flex items-center space-x-3">
             {/* Sign In Button */}
-            <Link 
-              to="/login" 
+            <Link
+              to="/login"
               className="hidden sm:inline-flex items-center px-4 py-2 text-gray-700 hover:text-gray-900 font-medium transition-colors duration-200"
             >
               Sign In
             </Link>
-            
+
             {/* Sign Up Button */}
-            <Link 
-              to="/signup" 
+            <Link
+              to="/signup"
               className="bg-gradient-to-r from-violet-500 to-purple-600 text-white px-5 py-2 rounded-lg hover:from-violet-600 hover:to-purple-700 transition-all duration-300 font-semibold shadow-lg hover:shadow-xl hover:scale-105 flex items-center space-x-1"
             >
               <span>Get Started</span>
             </Link>
-            
+
             {/* Mobile Menu Button */}
-            <button 
+            <button
               className="md:hidden p-2 text-gray-600 hover:text-gray-900 transition-colors"
               onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
             >
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path 
-                  strokeLinecap="round" 
-                  strokeLinejoin="round" 
-                  strokeWidth={2} 
-                  d={isMobileMenuOpen ? "M6 18L18 6M6 6l12 12" : "M4 6h16M4 12h16M4 18h16"} 
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d={isMobileMenuOpen ? "M6 18L18 6M6 6l12 12" : "M4 6h16M4 12h16M4 18h16"}
                 />
               </svg>
             </button>
@@ -885,18 +887,18 @@ const NewLandingPage: React.FC = () => {
                   <a href="#about" className="text-gray-600 hover:text-gray-900 transition-colors font-medium py-2">
                     About
                   </a>
-                  
+
                   {/* Mobile Auth Buttons */}
                   <div className="border-t border-gray-200/50 pt-4 mt-4 space-y-2">
-                    <Link 
-                      to="/login" 
+                    <Link
+                      to="/login"
                       className="block text-center text-gray-700 hover:text-gray-900 font-medium py-2 transition-colors"
                       onClick={() => setIsMobileMenuOpen(false)}
                     >
                       Sign In
                     </Link>
-                    <Link 
-                      to="/signup" 
+                    <Link
+                      to="/signup"
                       className="block bg-gradient-to-r from-violet-500 to-purple-600 text-white px-4 py-2 rounded-lg hover:from-violet-600 hover:to-purple-700 transition-all duration-300 font-semibold text-center"
                       onClick={() => setIsMobileMenuOpen(false)}
                     >
@@ -911,7 +913,7 @@ const NewLandingPage: React.FC = () => {
       </nav>
 
       {/* Hero Section */}
-      <section 
+      <section
         ref={heroRef}
         className="h-screen flex items-center justify-center relative overflow-hidden"
       >
@@ -944,23 +946,23 @@ const NewLandingPage: React.FC = () => {
             />
           ))}
         </div>
-        
+
         {/* Hero Text Container */}
         <div className="relative z-20 px-4 sm:px-6 lg:px-8 w-full max-w-xs sm:max-w-md md:max-w-2xl lg:max-w-4xl xl:max-w-5xl mx-auto text-center md:text-left md:mx-0 md:absolute md:top-[15%] md:left-16 lg:left-20 xl:left-24 hero-text">
           <h1 className="text-2xl sm:text-3xl md:text-5xl lg:text-6xl xl:text-7xl font-extrabold leading-tight text-gray-900 mb-4 md:mb-6">
-            <span className="block sm:inline">Automate Tasks</span>
+            <span className="block sm:inline">Automate Tasks  </span>
             <br className="hidden sm:block" />
             <span className="bg-gradient-to-r from-pink-400 via-purple-400 to-blue-400 bg-clip-text text-transparent">
               Effortlessly
             </span>
           </h1>
-          
+
           <div className="transform transition-all duration-1000" style={{ transform: get3DTransform(0.1) }}>
             <p className="text-sm sm:text-base md:text-lg lg:text-xl text-gray-900 mb-6 sm:mb-8 max-w-xs sm:max-w-md md:max-w-2xl leading-relaxed drop-shadow-lg mx-auto md:mx-0">
               Transform your workflows with intelligent automation. Connect apps,
               eliminate repetitive tasks, and focus on what truly matters.
             </p>
-            
+
             <div className="flex flex-col sm:flex-row items-center justify-center md:justify-start sm:space-x-4 space-y-3 sm:space-y-0 hero-buttons">
               <Link
                 to="/signup"
@@ -970,12 +972,11 @@ const NewLandingPage: React.FC = () => {
               >
                 <span>Get Started Free</span>
                 <ArrowRight
-                  className={`w-5 h-5 transition-transform duration-300 ${
-                    isHovering ? 'translate-x-1' : ''
-                  }`}
+                  className={`w-5 h-5 transition-transform duration-300 ${isHovering ? 'translate-x-1' : ''
+                    }`}
                 />
               </Link>
-              
+
               <Link
                 to="/login"
                 className="group bg-white/90 backdrop-blur-sm text-gray-800 px-6 py-3 rounded-xl font-semibold text-base hover:bg-white hover:shadow-lg hover:scale-105 transition-all duration-300 flex items-center space-x-2 w-full sm:w-auto justify-center border border-gray-200/50"
@@ -995,7 +996,7 @@ const NewLandingPage: React.FC = () => {
       </section>
 
       {/* Simple Workflow Demo */}
-      <section 
+      <section
         ref={workflowRef}
         className="py-16 px-6 bg-gray-50/50"
       >
@@ -1016,7 +1017,7 @@ const NewLandingPage: React.FC = () => {
       </section>
 
       {/* Interactive Cards - Feature Highlights */}
-      <section 
+      <section
         ref={featuresRef}
         className="py-20 px-6 bg-white"
       >
@@ -1057,7 +1058,7 @@ const NewLandingPage: React.FC = () => {
             ].map((app, index) => {
               const Icon = app.icon;
               return (
-                <div 
+                <div
                   key={app.name}
                   className="integration-item group flex flex-col items-center space-y-3 hover:scale-110 transition-transform duration-300"
                   style={{ animationDelay: `${index * 100}ms` }}
@@ -1113,7 +1114,7 @@ const NewLandingPage: React.FC = () => {
           <p className="text-xl text-gray-300 mb-10 max-w-2xl mx-auto">
             Join thousands of teams who save hours every week with intelligent automation.
           </p>
-          
+
           <div className="flex flex-col sm:flex-row items-center justify-center space-y-4 sm:space-y-0 sm:space-x-4">
             <Link
               to="/signup"
@@ -1128,7 +1129,7 @@ const NewLandingPage: React.FC = () => {
               Sign in
             </Link>
           </div>
-          
+
           <p className="text-gray-400 text-sm mt-6">
             No credit card required • Free forever plan available
           </p>
@@ -1144,7 +1145,7 @@ const NewLandingPage: React.FC = () => {
             </div>
             <span className="font-semibold text-gray-900">Autofy</span>
           </div>
-          
+
           <div className="flex items-center space-x-8 text-sm text-gray-600">
             <a href="#" className="hover:text-gray-900 transition-colors">Privacy</a>
             <a href="#" className="hover:text-gray-900 transition-colors">Terms</a>

@@ -1,0 +1,41 @@
+{
+  "name": "4 Workflow Zap",
+  "description": "Keyword : Regarding Scholarship",
+  "steps": [
+    {
+      "step_type": "trigger",
+      "service_name": "gmail",
+      "event_type": "new_email",
+      "configuration": {
+        "keywords": "Regarding Scholarship"
+      }
+    },
+    {
+      "step_type": "action",
+      "service_name": "notion",
+      "event_type": "create_page",
+      "configuration": {
+        "database_id": "241bbd9669da80e9bb6dc1d6a27c68ee",
+        "title_template": "Full email regarding Scholarship"
+      }
+    },
+    {
+      "step_type": "action",
+      "service_name": "openrouter",
+      "event_type": "process_with_ai",
+      "configuration": {
+        "model": "meta-llama/llama-3.2-3b-instruct:free",
+        "prompt": "Summarize the email in less then 100 words "
+      }
+    },
+    {
+      "step_type": "action",
+      "service_name": "notion",
+      "event_type": "create_page",
+      "configuration": {
+        "database_id": "241bbd9669da80e9bb6dc1d6a27c68ee",
+        "title_template": "Summarized email regarding scholarship "
+      }
+    }
+  ]
+}

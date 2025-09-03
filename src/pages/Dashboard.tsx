@@ -103,29 +103,48 @@ const ServiceIcon = React.memo(({ serviceName }: { serviceName: string }) => {
   );
 });
 
-// Simplified Node Component - no animations
+// Enhanced Node Component with model information
 const WorkflowNode = React.memo(({ data }: { data: any }) => {
   const { step } = data;
   const colors = serviceColors[step.service_name?.toLowerCase()] || serviceColors.default;
 
   const getDisplayName = () => {
-    if (step.service_name === 'openrouter') return 'AI';
+    if (step.service_name === 'openrouter') {
+      return step.configuration?.model ? 
+        `AI (${step.configuration.model.split('/').pop()?.split(':')[0] || 'Model'})` : 
+        'AI (No Model)';
+    }
     return step.service_name?.charAt(0).toUpperCase() + step.service_name?.slice(1) || 'Unknown';
+  };
+
+  const getSubtitle = () => {
+    const eventText = step.event_type?.replace(/_/g, ' ') || 'Event';
+    
+    if (step.service_name === 'openrouter' && step.configuration?.model) {
+      return step.configuration.model.includes(':free') ? 'Free Model' : 'Premium Model';
+    }
+    
+    return eventText;
   };
 
   return (
     <>
       <Handle type="target" position={Position.Left} className="!w-3 !h-3 !bg-blue-400" />
-      <div className={`px-6 py-4 rounded-2xl border-2 ${colors.bg} ${colors.border} min-w-[160px] max-w-[220px]`}>
+      <div className={`px-6 py-4 rounded-2xl border-2 ${colors.bg} ${colors.border} min-w-[160px] max-w-[240px]`}>
         <div className="flex items-center gap-3">
           <ServiceIcon serviceName={step.service_name} />
-          <div className="flex flex-col">
-            <span className={`font-bold text-sm ${colors.text}`}>
+          <div className="flex flex-col min-w-0 flex-1">
+            <span className={`font-bold text-sm ${colors.text} truncate`}>
               {getDisplayName()}
             </span>
             <span className="text-xs text-gray-400 truncate">
-              {step.event_type?.replace(/_/g, ' ') || 'Event'}
+              {getSubtitle()}
             </span>
+            {step.service_name === 'openrouter' && !step.configuration?.model && (
+              <span className="text-xs text-red-400 font-medium">
+                ⚠️ Model not specified
+              </span>
+            )}
           </div>
         </div>
       </div>

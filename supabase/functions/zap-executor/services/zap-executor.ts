@@ -170,8 +170,9 @@ export class ZapExecutor {
             continue;
           }
 
-          // Process email through the action pipeline
+          // Process email through the action pipeline with step result tracking
           let currentEmail: EmailMessage | AIProcessedEmail = email;
+          const stepResults: Array<{stepId: string; service: string; action: string; data?: any}> = [];
           
           this.logger.info(`=== EMAIL PIPELINE START ===`);
           this.logger.info(`Initial email object keys:`, Object.keys(currentEmail));
@@ -180,7 +181,26 @@ export class ZapExecutor {
             this.logger.info(`Processing step: ${actionStep.service_name}.${actionStep.event_type}`);
             this.logger.info(`Input email has aiProcessedContent:`, 'aiProcessedContent' in currentEmail);
             
-            currentEmail = await this.executeActionStep(actionStep, zap.user_id, currentEmail);
+            // Process step configuration to resolve any placeholders from previous steps
+            const processedStep = {
+              ...actionStep,
+              configuration: this.processStepConfiguration(actionStep.configuration, currentEmail, stepResults)
+            };
+            
+            const stepResult = await this.executeActionStep(processedStep, zap.user_id, currentEmail);
+            
+            // Store step result for placeholder resolution in subsequent steps
+            stepResults.push({
+              stepId: actionStep.id,
+              service: actionStep.service_name,
+              action: actionStep.event_type,
+              data: stepResult
+            });
+            
+            // Update current email with step result data
+            if (stepResult && typeof stepResult === 'object') {
+              currentEmail = { ...currentEmail, ...stepResult };
+            }
             
             this.logger.info(`After step ${actionStep.service_name}: email has aiProcessedContent:`, 'aiProcessedContent' in currentEmail);
             this.logger.info(`Current email object keys:`, Object.keys(currentEmail));
@@ -442,6 +462,137 @@ export class ZapExecutor {
   private async releaseExecutionLock(lockId: string): Promise<void> {
     ZapExecutor.runningZaps.delete(lockId);
     this.logger.info(`Released execution lock: ${lockId}`);
+  }
+
+  /**
+   * Process step configuration to resolve placeholders from email data and previous step outputs
+   */
+  private processStepConfiguration(
+    configuration: any,
+    email: EmailMessage | AIProcessedEmail,
+    stepResults?: Array<{stepId: string; service: string; action: string; data?: any}>
+  ): any {
+    const processed = { ...configuration };
+    
+    // Build variables from email data
+    const variables: Record<string, any> = {
+      subject: email.subject || '',
+      sender: email.sender || '',
+      body: email.body || email.snippet || '',
+      timestamp: email.receivedAt || new Date().toISOString(),
+      date: new Date().toLocaleDateString(),
+      time: new Date().toLocaleTimeString()
+    };
+
+    // Add AI content if available
+    if ('aiProcessedContent' in email && email.aiProcessedContent) {
+      variables.ai_content = email.aiProcessedContent;
+    }
+    if ('aiContent' in email && email.aiContent) {
+      variables.ai_content = email.aiContent;
+    }
+    
+    // Process each configuration field that might contain templates
+    Object.entries(processed).forEach(([key, value]) => {
+      if (typeof value === 'string') {
+        processed[key] = this.processTemplate(value, variables, stepResults);
+      } else if (typeof value === 'object' && value !== null && !Array.isArray(value)) {
+        // Recursively process nested objects
+        processed[key] = this.processStepConfiguration(value, email, stepResults);
+      }
+    });
+    
+    return processed;
+  }
+
+  /**
+   * Process template variables in any string, including step output references
+   */
+  private processTemplate(
+    template: string, 
+    variables: Record<string, any>, 
+    stepResults?: Array<{stepId: string; service: string; action: string; data?: any}>
+  ): string {
+    let processed = template;
+    
+    // First, process regular variables
+    Object.entries(variables).forEach(([key, value]) => {
+      const regex = new RegExp(`{{${key}}}`, 'g');
+      processed = processed.replace(regex, String(value || ''));
+    });
+    
+    // Then, process step output references like {{steps.2.output}}
+    if (stepResults && stepResults.length > 0) {
+      // Match patterns like {{steps.N.output}}, {{steps.N.data.field}}, etc.
+      const stepOutputPattern = /{{steps\.(\d+)\.(\w+)(?:\.(\w+))?}}/g;
+      let match;
+      
+      while ((match = stepOutputPattern.exec(processed)) !== null) {
+        const stepIndex = parseInt(match[1]) - 1; // Convert to 0-based index
+        const outputType = match[2]; // 'output', 'data', etc.
+        const field = match[3]; // Optional nested field
+        
+        let replacementValue = '';
+        
+        if (stepIndex >= 0 && stepIndex < stepResults.length) {
+          const stepResult = stepResults[stepIndex];
+          
+          switch (outputType) {
+            case 'output':
+              // Get the primary output based on service type
+              if (stepResult.data) {
+                if (stepResult.service === 'openrouter') {
+                  replacementValue = stepResult.data.aiContent || stepResult.data.aiProcessedContent || '';
+                } else if (stepResult.service === 'gmail') {
+                  replacementValue = stepResult.data.messageId || stepResult.data.threadId || '';
+                } else if (stepResult.service === 'notion') {
+                  replacementValue = stepResult.data.pageId || stepResult.data.url || '';
+                } else if (stepResult.service === 'telegram') {
+                  replacementValue = stepResult.data.success ? 'Message sent successfully' : '';
+                } else {
+                  // Generic fallback - try to find a reasonable output
+                  replacementValue = stepResult.data.output || stepResult.data.result || JSON.stringify(stepResult.data);
+                }
+              }
+              break;
+              
+            case 'data':
+              if (field && stepResult.data && stepResult.data[field] !== undefined) {
+                replacementValue = String(stepResult.data[field]);
+              } else if (!field && stepResult.data) {
+                replacementValue = JSON.stringify(stepResult.data);
+              }
+              break;
+              
+            case 'service':
+              replacementValue = stepResult.service || '';
+              break;
+              
+            case 'action':
+              replacementValue = stepResult.action || '';
+              break;
+              
+            case 'success':
+              replacementValue = stepResult.data ? 'true' : 'false';
+              break;
+              
+            default:
+              // Try to find the field in the step result data
+              if (stepResult.data && stepResult.data[outputType] !== undefined) {
+                replacementValue = String(stepResult.data[outputType]);
+              }
+              break;
+          }
+        } else {
+          this.logger.warn(`Step ${stepIndex + 1} not found or not yet executed for placeholder ${match[0]}`);
+        }
+        
+        // Replace the placeholder with the resolved value
+        processed = processed.replace(match[0], replacementValue);
+      }
+    }
+    
+    return processed;
   }
 }
 

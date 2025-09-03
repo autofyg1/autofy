@@ -1,0 +1,25 @@
+{
+  "name": "telegram check",
+  "description": "",
+  "steps": [
+    {
+      "step_type": "trigger",
+      "service_name": "gmail",
+      "event_type": "new_email",
+      "configuration": {
+        "keywords": "Query Resolution"
+      }
+    },
+    {
+      "step_type": "action",
+      "service_name": "telegram",
+      "event_type": "send_message",
+      "configuration": {
+        "chat_id": "1124112877",
+        "parse_mode": "",
+        "message_template": "new email on hp",
+        "disable_web_page_preview": ""
+      }
+    }
+  ]
+}

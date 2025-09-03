@@ -62,16 +62,31 @@ const supabase = createClient(
   Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
 );
 
-const genAI = new GoogleGenerativeAI(Deno.env.get("GEMINI_API_KEY")!);
-const chatModel = genAI.getGenerativeModel({ 
-  model: "gemini-2.0-flash-exp",
-  generationConfig: {
-    temperature: 0.7,
-    topP: 0.8,
-    maxOutputTokens: 2048,
+// Helper functions to call the shared Gemini Load Balancer edge function
+const SHARED_FUNCTION_URL = `${Deno.env.get("SUPABASE_URL")}/functions/v1/shared`;
+
+async function callSharedFunction(action: string, payload: any): Promise<any> {
+  const response = await fetch(SHARED_FUNCTION_URL, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")}`
+    },
+    body: JSON.stringify({ action, ...payload })
+  });
+
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
+    throw new Error(`Shared function call failed: ${errorData.error || response.statusText}`);
   }
-});
-const embedModel = genAI.getGenerativeModel({ model: "text-embedding-004" });
+
+  const result = await response.json();
+  if (!result.success) {
+    throw new Error(result.error || 'Shared function returned error');
+  }
+
+  return result;
+}
 
 // Dynamic system prompt that includes user's available integrations and data
 async function buildSystemPrompt(userId: string): Promise<string> {
@@ -214,8 +229,8 @@ Focus on functional requirements like database IDs and keywords. Use {{integrati
 Always be conversational and helpful.`;
 
 async function generateEmbedding(text: string): Promise<number[]> {
-  const result = await embedModel.embedContent(text);
-  return result.embedding.values;
+  const result = await callSharedFunction('generateEmbedding', { text });
+  return result.embedding;
 }
 
 async function getOrCreateSession(userId: string, sessionId?: string, topic?: string): Promise<string> {
@@ -516,38 +531,141 @@ async function generateChatResponse(messages: ChatMessage[], userMessage: string
     systemPrompt = BASIC_SYSTEM_PROMPT;
   }
 
-  // Extract key information from conversation to avoid re-asking
-  const conversationText = messages.map(m => m.content).join(' ');
-  let contextualInfo = '';
-  
-  // Extract database IDs mentioned in conversation
-  const dbIdMatches = conversationText.match(/[a-f0-9]{32}/g);
-  if (dbIdMatches && dbIdMatches.length > 0) {
-    contextualInfo += `\n\nIMPORTANT CONTEXT FROM CONVERSATION:\n- Database ID already provided: ${dbIdMatches[dbIdMatches.length - 1]}\n- DO NOT ask for database ID again - use the provided one`;
-  }
-  
-  // Extract keywords mentioned
-  const keywordMatches = conversationText.match(/keywords?[:\s]+["']([^"']+)["']/gi);
-  if (keywordMatches && keywordMatches.length > 0) {
-    contextualInfo += `\n- Keywords already provided: ${keywordMatches[keywordMatches.length - 1]}\n- DO NOT ask for keywords again`;
-  }
+    // Enhanced context extraction from conversation to prevent re-asking
+    const conversationText = messages.map(m => m.content).join(' ');
+    let contextualInfo = '';
+    
+    // Create a comprehensive context map from conversation
+    const providedContext = {
+      database_ids: [],
+      keywords: [],
+      models: [],
+      emails: [],
+      chat_ids: [],
+      message_templates: [],
+      prompts: [],
+      requirements: []
+    };
+    
+    // Extract various types of provided information
+    // Database IDs (32 char hex strings)
+    const dbIdMatches = conversationText.match(/[a-f0-9]{32}/g);
+    if (dbIdMatches) {
+      providedContext.database_ids = [...new Set(dbIdMatches)];
+    }
+    
+    // Email addresses
+    const emailMatches = conversationText.match(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/g);
+    if (emailMatches) {
+      providedContext.emails = [...new Set(emailMatches)];
+    }
+    
+    // Keywords patterns
+    const keywordPatterns = [
+      /keywords?[:\s]+["']([^"']+)["']/gi,
+      /filter[\s]+(for|by)[:\s]*["']([^"']+)["']/gi,
+      /search[\s]+(for|by)[:\s]*["']([^"']+)["']/gi
+    ];
+    
+    keywordPatterns.forEach(pattern => {
+      const matches = conversationText.match(pattern);
+      if (matches) {
+        matches.forEach(match => {
+          const extracted = match.match(/["']([^"']+)["']/)?.[1];
+          if (extracted) providedContext.keywords.push(extracted);
+        });
+      }
+    });
+    
+    // AI models mentioned
+    const modelPatterns = [
+      /llama[\w\d\-\.\/:]*\b/gi,
+      /gpt[\w\d\-\.\/:]*\b/gi,
+      /claude[\w\d\-\.\/:]*\b/gi,
+      /gemini[\w\d\-\.\/:]*\b/gi,
+      /meta[\-\/]llama[\w\d\-\.\/:]*\b/gi
+    ];
+    
+    modelPatterns.forEach(pattern => {
+      const matches = conversationText.match(pattern);
+      if (matches) {
+        providedContext.models.push(...matches);
+      }
+    });
+    
+    // Chat IDs (negative numbers for Telegram groups)
+    const chatIdMatches = conversationText.match(/\-?\d{8,}/g);
+    if (chatIdMatches) {
+      providedContext.chat_ids = [...new Set(chatIdMatches)];
+    }
+    
+    // Message templates
+    const templateMatches = conversationText.match(/message[\s]*template[:\s]*["']([^"']+)["']/gi);
+    if (templateMatches) {
+      templateMatches.forEach(match => {
+        const template = match.match(/["']([^"']+)["']/)?.[1];
+        if (template) providedContext.message_templates.push(template);
+      });
+    }
+    
+    // AI prompts
+    const promptMatches = conversationText.match(/prompt[:\s]*["']([^"']+)["']/gi);
+    if (promptMatches) {
+      promptMatches.forEach(match => {
+        const prompt = match.match(/["']([^"']+)["']/)?.[1];
+        if (prompt) providedContext.prompts.push(prompt);
+      });
+    }
+    
+    // Build comprehensive context info
+    if (providedContext.database_ids.length > 0) {
+      contextualInfo += `\n\nIMPORTANT CONTEXT FROM CONVERSATION:`;
+      contextualInfo += `\n- Database IDs already provided: ${providedContext.database_ids.join(', ')}`;
+      contextualInfo += `\n- DO NOT ask for database ID again - use one of these provided IDs`;
+    }
+    
+    if (providedContext.keywords.length > 0) {
+      contextualInfo += `\n- Keywords already provided: "${providedContext.keywords.join('", "')}"`;
+      contextualInfo += `\n- DO NOT ask for keywords again - use the provided ones`;
+    }
+    
+    if (providedContext.models.length > 0) {
+      contextualInfo += `\n- AI Models mentioned: ${providedContext.models.join(', ')}`;
+      contextualInfo += `\n- Consider using one of these models if applicable`;
+    }
+    
+    if (providedContext.emails.length > 0) {
+      contextualInfo += `\n- Email addresses mentioned: ${providedContext.emails.join(', ')}`;
+      contextualInfo += `\n- Use these if relevant for email filtering or sending`;
+    }
+    
+    if (providedContext.prompts.length > 0) {
+      contextualInfo += `\n- AI Prompts provided: "${providedContext.prompts.join('", "')}"`;
+      contextualInfo += `\n- Use these prompts instead of asking for new ones`;
+    }
+    
+    if (providedContext.message_templates.length > 0) {
+      contextualInfo += `\n- Message templates provided: "${providedContext.message_templates.join('", "')}"`;
+      contextualInfo += `\n- Use these templates instead of asking for new ones`;
+    }
 
-  const chat = chatModel.startChat({
-    history: conversationHistory,
-    safetySettings: [
-      {
-        category: HarmCategory.HARM_CATEGORY_HARASSMENT,
-        threshold: HarmBlockThreshold.BLOCK_NONE,
-      },
-      {
-        category: HarmCategory.HARM_CATEGORY_HATE_SPEECH,
-        threshold: HarmBlockThreshold.BLOCK_NONE,
-      },
-    ],
+  // Use Gemini Load Balancer for chat response generation via shared function
+  // Create a session ID from userId for consistent conversation context
+  const sessionId = `chat_${userId}`;
+  
+  const result = await callSharedFunction('generateResponse', {
+    sessionId,
+    message: userMessage,
+    systemPrompt: `${systemPrompt}${contextualInfo}`,
+    options: {
+      model: "gemini-2.0-flash-exp",
+      temperature: 0.7,
+      topP: 0.8,
+      maxOutputTokens: 2048
+    }
   });
-
-  const result = await chat.sendMessage(`${systemPrompt}${contextualInfo}\n\nUser: ${userMessage}`);
-  return result.response.text();
+  
+  return result.response;
 }
 
 serve(async (req) => {
@@ -642,7 +760,8 @@ serve(async (req) => {
     console.log('Getting similar messages...');
     let similarMessages: ChatMessage[];
     try {
-      similarMessages = await getSimilarMessages(userMessageEmbedding, 0.75, 3);
+      // Lower threshold from 0.75 to 0.65 for better recall as mentioned in BUG_FIXES
+      similarMessages = await getSimilarMessages(userMessageEmbedding, 0.65, 5);
       console.log('Similar messages retrieved:', similarMessages.length);
     } catch (error) {
       console.error('Error getting similar messages:', error);

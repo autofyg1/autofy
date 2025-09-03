@@ -129,14 +129,32 @@ async function executeAIProcessing(
       throw new Error(`Unsupported AI action: ${actionType}`);
     }
 
+    // Validate required configuration
+    if (!config.model) {
+      throw new Error('AI model is required for process_with_ai action');
+    }
+    
+    if (!config.prompt) {
+      throw new Error('AI prompt is required for process_with_ai action');
+    }
+
     // Process the AI prompt with context variables
     const processedPrompt = processTemplate(config.prompt, context.variables);
     
+    // Validate processed prompt is not empty
+    if (!processedPrompt.trim()) {
+      throw new Error('Processed AI prompt is empty after template resolution');
+    }
+    
     // Get OpenRouter API key from environment variables or integrations
-    const openrouterApiKey = process.env.VITE_OPENROUTER_API_KEY;
+    const openrouterApiKey = import.meta.env?.VITE_OPENROUTER_API_KEY || process.env.VITE_OPENROUTER_API_KEY;
     if (!openrouterApiKey) {
       throw new Error('OpenRouter API key not configured');
     }
+
+    // Sanitize and validate parameters
+    const maxTokens = config.max_tokens ? Math.min(Math.max(parseInt(config.max_tokens), 1), 4096) : 1000;
+    const temperature = config.temperature ? Math.min(Math.max(parseFloat(config.temperature), 0), 2) : 0.7;
 
     const requestBody = {
       model: config.model,
@@ -146,42 +164,88 @@ async function executeAIProcessing(
           content: processedPrompt
         }
       ],
-      max_tokens: config.max_tokens ? parseInt(config.max_tokens) : 1000,
-      temperature: config.temperature ? parseFloat(config.temperature) : 0.7
+      max_tokens: maxTokens,
+      temperature: temperature
     };
 
-    const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${openrouterApiKey}`,
-        'Content-Type': 'application/json',
-        'HTTP-Referer': window.location.origin,
-        'X-Title': 'Zappy Email Automation'
-      },
-      body: JSON.stringify(requestBody)
-    });
+    // Retry logic for API calls
+    const maxRetries = 3;
+    let lastError;
+    
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+      try {
+        const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${openrouterApiKey}`,
+            'Content-Type': 'application/json',
+            'HTTP-Referer': window.location.origin,
+            'X-Title': 'Autofy Workflow Engine'
+          },
+          body: JSON.stringify(requestBody)
+        });
 
-    if (!response.ok) {
-      const errorText = await response.text();
-      throw new Error(`AI processing failed: ${errorText}`);
-    }
+        if (!response.ok) {
+          const errorText = await response.text();
+          const error = new Error(`AI API error (attempt ${attempt}): ${response.status} ${errorText}`);
+          
+          // Check if this is a rate limit error
+          if (response.status === 429) {
+            if (attempt < maxRetries) {
+              // Wait with exponential backoff for rate limit
+              const waitTime = Math.min(1000 * Math.pow(2, attempt), 10000);
+              console.log(`Rate limited, waiting ${waitTime}ms before retry...`);
+              await new Promise(resolve => setTimeout(resolve, waitTime));
+              continue;
+            }
+          }
+          
+          throw error;
+        }
 
-    const aiResponse = await response.json();
-    const aiContent = aiResponse.choices?.[0]?.message?.content || 'No response generated';
+        const aiResponse = await response.json();
+        
+        // Validate AI response structure
+        if (!aiResponse.choices || !Array.isArray(aiResponse.choices) || aiResponse.choices.length === 0) {
+          throw new Error('Invalid AI response: no choices returned');
+        }
+        
+        const aiContent = aiResponse.choices[0]?.message?.content;
+        if (!aiContent || typeof aiContent !== 'string') {
+          throw new Error('Invalid AI response: no content in first choice');
+        }
 
-    // Add AI content to context variables for subsequent steps
-    context.variables.ai_content = aiContent;
-    context.variables.ai_model = config.model;
-    context.variables.ai_processed_at = new Date().toISOString();
+        // Add AI content to context variables for subsequent steps
+        context.variables.ai_content = aiContent;
+        context.variables.ai_model = config.model;
+        context.variables.ai_processed_at = new Date().toISOString();
+        // Remove the reference to actionSteps since it's not in scope
+        // context.variables[`step_output`] = aiContent; // Generic step output variable
 
-    return {
-      success: true,
-      data: {
-        aiContent,
-        model: config.model,
-        processedAt: new Date().toISOString()
+        return {
+          success: true,
+          data: {
+            aiContent,
+            model: config.model,
+            processedAt: new Date().toISOString(),
+            tokenUsage: aiResponse.usage || {},
+            output: aiContent // Standardized output field
+          }
+        };
+        
+      } catch (error) {
+        lastError = error;
+        
+        if (attempt < maxRetries) {
+          const waitTime = 1000 * attempt; // Simple linear backoff
+          console.log(`AI processing attempt ${attempt} failed, retrying in ${waitTime}ms...`);
+          await new Promise(resolve => setTimeout(resolve, waitTime));
+        }
       }
-    };
+    }
+    
+    throw lastError;
+    
   } catch (error) {
     return {
       success: false,
@@ -330,15 +394,91 @@ async function executeTelegramAction(
 }
 
 /**
- * Process template variables in any string
+ * Process template variables in any string, including step output references
  */
-function processTemplate(template: string, variables: Record<string, any>): string {
+function processTemplate(
+  template: string, 
+  variables: Record<string, any>, 
+  stepResults?: Array<{stepId: string; service: string; action: string; data?: any}>
+): string {
   let processed = template;
   
+  // First, process regular variables
   Object.entries(variables).forEach(([key, value]) => {
     const regex = new RegExp(`{{${key}}}`, 'g');
     processed = processed.replace(regex, String(value || ''));
   });
+  
+  // Then, process step output references like {{steps.2.output}}
+  if (stepResults) {
+    // Match patterns like {{steps.N.output}}, {{steps.N.data.field}}, etc.
+    const stepOutputPattern = /{{steps\.(\d+)\.(\w+)(?:\.(\w+))?}}/g;
+    let match;
+    
+    while ((match = stepOutputPattern.exec(processed)) !== null) {
+      const stepIndex = parseInt(match[1]) - 1; // Convert to 0-based index
+      const outputType = match[2]; // 'output', 'data', etc.
+      const field = match[3]; // Optional nested field
+      
+      let replacementValue = '';
+      
+      if (stepIndex >= 0 && stepIndex < stepResults.length) {
+        const stepResult = stepResults[stepIndex];
+        
+        switch (outputType) {
+          case 'output':
+            // Get the primary output based on service type
+            if (stepResult.data) {
+              if (stepResult.service === 'openrouter') {
+                replacementValue = stepResult.data.aiContent || '';
+              } else if (stepResult.service === 'gmail') {
+                replacementValue = stepResult.data.messageId || stepResult.data.threadId || '';
+              } else if (stepResult.service === 'notion') {
+                replacementValue = stepResult.data.pageId || stepResult.data.url || '';
+              } else if (stepResult.service === 'telegram') {
+                replacementValue = stepResult.data.messageSent ? 'Message sent successfully' : '';
+              } else {
+                // Generic fallback - try to find a reasonable output
+                replacementValue = stepResult.data.output || stepResult.data.result || JSON.stringify(stepResult.data);
+              }
+            }
+            break;
+            
+          case 'data':
+            if (field && stepResult.data && stepResult.data[field] !== undefined) {
+              replacementValue = String(stepResult.data[field]);
+            } else if (!field && stepResult.data) {
+              replacementValue = JSON.stringify(stepResult.data);
+            }
+            break;
+            
+          case 'service':
+            replacementValue = stepResult.service || '';
+            break;
+            
+          case 'action':
+            replacementValue = stepResult.action || '';
+            break;
+            
+          case 'success':
+            replacementValue = stepResult.data ? 'true' : 'false';
+            break;
+            
+          default:
+            // Try to find the field in the step result data
+            if (stepResult.data && stepResult.data[outputType] !== undefined) {
+              replacementValue = String(stepResult.data[outputType]);
+            }
+            break;
+        }
+      } else {
+        console.warn(`Step ${stepIndex + 1} not found or not yet executed for placeholder ${match[0]}`);
+      }
+      
+      // Replace the placeholder with the resolved value
+      processed = processed.replace(match[0], replacementValue);
+    }
+  }
   
   return processed;
 }
@@ -391,7 +531,13 @@ export async function executeWorkflow(zapId: string, triggerData: any): Promise<
     const results = [];
 
     for (const step of actionSteps) {
-      const result = await executeWorkflowStep(step, context);
+      // Update step configuration to resolve any step output placeholders
+      const updatedStepConfig = {
+        ...step,
+        configuration: processStepConfiguration(step.configuration, context.variables, results)
+      };
+      
+      const result = await executeWorkflowStep(updatedStepConfig, context);
       results.push({
         stepId: step.id,
         service: step.service_name,
@@ -433,6 +579,29 @@ export async function executeWorkflow(zapId: string, triggerData: any): Promise<
       error: error instanceof Error ? error.message : 'Workflow execution failed'
     };
   }
+}
+
+/**
+ * Process step configuration to resolve placeholders
+ */
+function processStepConfiguration(
+  configuration: any,
+  variables: Record<string, any>,
+  stepResults?: Array<{stepId: string; service: string; action: string; data?: any}>
+): any {
+  const processed = { ...configuration };
+  
+  // Process each configuration field that might contain templates
+  Object.entries(processed).forEach(([key, value]) => {
+    if (typeof value === 'string') {
+      processed[key] = processTemplate(value, variables, stepResults);
+    } else if (typeof value === 'object' && value !== null) {
+      // Recursively process nested objects
+      processed[key] = processStepConfiguration(value, variables, stepResults);
+    }
+  });
+  
+  return processed;
 }
 
 /**

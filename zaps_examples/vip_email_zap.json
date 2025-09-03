@@ -1,0 +1,33 @@
+{
+  "name": "Vip Email",
+  "description": "",
+  "steps": [
+    {
+      "step_type": "trigger",
+      "service_name": "gmail",
+      "event_type": "new_email",
+      "configuration": {
+        "keywords": "Vip Email"
+      }
+    },
+    {
+      "step_type": "action",
+      "service_name": "openrouter",
+      "event_type": "process_with_ai",
+      "configuration": {
+        "model": "huggingface/zephyr-7b-beta:free",
+        "prompt": "What is user saying in this email , is the email a fraud suspect??"
+      }
+    },
+    {
+      "step_type": "action",
+      "service_name": "telegram",
+      "event_type": "send_message",
+      "configuration": {
+        "message_title": "new email for yugal",
+        "message_template": "📧 <b>new email for yugal</b>\n\n<b>From:</b> {{sender}}\n<b>Subject:</b> {{subject}}\n<b>Time:</b> {{timestamp}}\n\n{{ai_content}}\n\n<i>⚡ Automated by Autofy</i>",
+        "disable_notification": "false"
+      }
+    }
+  ]
+}

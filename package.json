@@ -3,12 +3,13 @@
  "private": true,
  "version": "0.0.0",
  "type": "module",
- "scripts": {
-  "dev": "vite",
-  "build": "vite build",
-  "lint": "eslint .",
-  "preview": "vite preview"
- },
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "lint": "eslint .",
+    "preview": "vite preview",
+    "test:zaps": "node test-zaps-examples.cjs"
+  },
  "dependencies": {
   "@react-three/drei": "^9.122.0",
   "@react-three/fiber": "^8.18.0",

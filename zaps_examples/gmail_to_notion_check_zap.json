@@ -1,0 +1,23 @@
+{
+  "name": "gmail to notion check",
+  "description": "",
+  "steps": [
+    {
+      "step_type": "trigger",
+      "service_name": "gmail",
+      "event_type": "new_email",
+      "configuration": {
+        "keywords": "leetcode "
+      }
+    },
+    {
+      "step_type": "action",
+      "service_name": "notion",
+      "event_type": "create_page",
+      "configuration": {
+        "database_id": "241bbd9669da80e9bb6dc1d6a27c68ee",
+        "title_template": "email to notion"
+      }
+    }
+  ]
+}

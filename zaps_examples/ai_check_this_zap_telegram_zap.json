@@ -1,0 +1,34 @@
+{
+  "name": "ai check this zap telegram",
+  "description": "",
+  "steps": [
+    {
+      "step_type": "trigger",
+      "service_name": "gmail",
+      "event_type": "new_email",
+      "configuration": {
+        "keywords": "check this "
+      }
+    },
+    {
+      "step_type": "action",
+      "service_name": "openrouter",
+      "event_type": "process_with_ai",
+      "configuration": {
+        "model": "mistralai/mistral-7b-instruct:free",
+        "prompt": "summarize this and find solution"
+      }
+    },
+    {
+      "step_type": "action",
+      "service_name": "telegram",
+      "event_type": "send_message",
+      "configuration": {
+        "parse_mode": "HTML",
+        "message_template": "\"🤖 AI Summary:\n{{ai_content}}\n\n📧 Original Email:\nFrom: {{sender}}\nSubject: {{subject}}\"",
+        "disable_notification": "false",
+        "disable_web_page_preview": "true"
+      }
+    }
+  ]
+}
