@@ -20,7 +20,7 @@ import {
   Users
 } from 'lucide-react';
 import WorkflowDemo from '../components/WorkflowDemo';
-import { AIWorkflowAutomation } from '../components/Animated-card';
+import { AIWorkflowAutomation } from '../components/animated-card';
 
 // Utility function for class names
 const cn = (...classes: (string | undefined | null | false)[]): string => {
@@ -150,7 +150,7 @@ const WorkflowAnalyticsVisual: React.FC<VisualProps> = ({
 }) => {
   const [hovered, setHovered] = useState(false)
   const [automationProgress, setAutomationProgress] = useState(25)
-  const [efficiencyProgress, setEfficiencyProgress] = useState(0)
+  const [efficiencyProgress, setEfficiencyProgress] = useState(0) // ✅ Fixed this line
 
   useEffect(() => {
     let timeout: NodeJS.Timeout
@@ -652,6 +652,7 @@ const NewLandingPage: React.FC = () => {
     features: false
   });
   const [isHovering, setIsHovering] = useState(false);
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false); // Add this line
 
   // 3D transform function for hero text
   const get3DTransform = (intensity: number) => {
@@ -791,24 +792,6 @@ const NewLandingPage: React.FC = () => {
       }
     });
 
-    // Navbar background change on scroll
-    ScrollTrigger.create({
-      trigger: heroRef.current,
-      start: "top top",
-      end: "bottom top",
-      onUpdate: (self) => {
-        const nav = document.querySelector('nav');
-        if (nav) {
-          if (self.progress > 0.1) {
-            nav.classList.add('bg-white/95');
-            nav.classList.remove('bg-white/90');
-          } else {
-            nav.classList.add('bg-white/90');
-            nav.classList.remove('bg-white/95');
-          }
-        }
-      }
-    });
 
     // Cleanup
     return () => {
@@ -818,32 +801,107 @@ const NewLandingPage: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-white font-inter">
-      {/* Minimal Navigation */}
-      <nav className="fixed top-0 w-full z-50 bg-white/90 backdrop-blur-sm border-b border-gray-100">
-        <div className="max-w-6xl mx-auto px-6 py-4 flex items-center justify-between">
-          <div className="flex items-center space-x-3">
-            <div className="w-8 h-8 rounded-lg bg-gradient-to-r from-violet-500 to-purple-600 flex items-center justify-center">
-              <Zap className="w-5 h-5 text-white" />
+{/* Navigation */}
+<nav className="fixed top-0 w-screen z-50 flex justify-center">
+  <div className="mt-4 bg-white rounded-2xl shadow-md px-6 py-3 flex items-center justify-between max-w-6xl w-full">
+    
+    {/* Left: Logo + Autofy */}
+    <div className="flex items-center space-x-2">
+      <img 
+        src="https://cdn-icons-png.flaticon.com/512/60/60525.png" 
+        alt="logo" 
+        className="w-6 h-6 rotate-[-50deg]"
+      />
+      <span className="text-lg font-medium text-gray-800">Autofy</span>
+    </div>
+
+    {/* Center: Links */}
+    <div className="hidden md:flex items-center space-x-8">
+      <a href="#blog" className="text-gray-600 hover:text-gray-900 transition-colors font-medium">
+        Blog
+      </a>
+      <a href="#pricing" className="text-gray-600 hover:text-gray-900 transition-colors font-medium">
+        Pricing
+      </a>
+      <a href="#mission" className="text-gray-600 hover:text-gray-900 transition-colors font-medium">
+        Our Mission
+      </a>
+    </div>
+    {/* Right: Auth Buttons */}
+    <div className="flex items-center space-x-3">
+      {/* Sign In Button */}
+      <Link 
+        to="/login" 
+        className="hidden sm:inline-flex items-center px-4 py-2 text-gray-700 hover:text-gray-900 font-medium transition-colors duration-200"
+      >
+        Sign In
+      </Link>
+      
+      {/* Sign Up Button */}
+      <Link 
+        to="/signup" 
+        className="bg-gradient-to-r from-violet-500 to-purple-600 text-white px-5 py-2 rounded-lg hover:from-violet-600 hover:to-purple-700 transition-all duration-300 font-semibold shadow-lg hover:shadow-xl hover:scale-105 flex items-center space-x-1"
+      >
+        <span>Get Started</span>
+      </Link>
+      
+      {/* Mobile Menu Button (for small screens) */}
+      <button 
+        className="md:hidden p-2 text-gray-600 hover:text-gray-900 transition-colors"
+        onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+      >
+        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path 
+            strokeLinecap="round" 
+            strokeLinejoin="round" 
+            strokeWidth={2} 
+            d={isMobileMenuOpen ? "M6 18L18 6M6 6l12 12" : "M4 6h16M4 12h16M4 18h16"} 
+          />
+        </svg>
+      </button>
+
+      {/* Mobile Menu Dropdown */}
+      {isMobileMenuOpen && (
+        <div className="absolute top-full left-4 right-4 mt-2 bg-white/95 backdrop-blur-sm rounded-2xl shadow-xl border border-gray-200/50 py-4 md:hidden">
+          <div className="flex flex-col space-y-1 px-4">
+            <a href="#features" className="text-gray-600 hover:text-gray-900 transition-colors font-medium py-2">
+              Features
+            </a>
+            <a href="#pricing" className="text-gray-600 hover:text-gray-900 transition-colors font-medium py-2">
+              Pricing
+            </a>
+            <a href="#integrations" className="text-gray-600 hover:text-gray-900 transition-colors font-medium py-2">
+              Integrations
+            </a>
+            <a href="#about" className="text-gray-600 hover:text-gray-900 transition-colors font-medium py-2">
+              About
+            </a>
+            
+            {/* Mobile Auth Buttons */}
+            <div className="border-t border-gray-200/50 pt-4 mt-4 space-y-2">
+              <Link 
+                to="/login" 
+                className="block text-center text-gray-700 hover:text-gray-900 font-medium py-2 transition-colors"
+                onClick={() => setIsMobileMenuOpen(false)}
+              >
+                Sign In
+              </Link>
+              <Link 
+                to="/signup" 
+                className="block bg-gradient-to-r from-violet-500 to-purple-600 text-white px-4 py-2 rounded-lg hover:from-violet-600 hover:to-purple-700 transition-all duration-300 font-semibold text-center"
+                onClick={() => setIsMobileMenuOpen(false)}
+              >
+                Get Started Free
+              </Link>
             </div>
-            <span className="text-xl font-semibold text-gray-900">Autofy</span>
-          </div>
-          
-          <div className="flex items-center space-x-6">
-            <Link 
-              to="/login" 
-              className="text-gray-600 hover:text-gray-900 font-medium transition-colors"
-            >
-              Sign in
-            </Link>
-            <Link 
-              to="/signup" 
-              className="bg-gray-900 text-white px-4 py-2 rounded-lg font-medium hover:bg-gray-800 transition-colors"
-            >
-              Get started
-            </Link>
           </div>
         </div>
-      </nav>
+      )}
+    </div>
+  </div>
+</nav>
+
+
 
       {/* Hero Section */}
       <section 
@@ -902,16 +960,24 @@ const NewLandingPage: React.FC = () => {
           <div className="flex flex-col sm:flex-row items-center justify-center md:justify-start sm:space-x-4 space-y-3 sm:space-y-0 hero-buttons">
             <Link
               to="/signup"
-              className="group bg-gradient-to-r from-pink-500 to-purple-600 text-white px-4 sm:px-6 py-2.5 sm:py-3 rounded-lg sm:rounded-xl font-semibold text-sm sm:text-base hover:shadow-xl hover:scale-105 transition-all duration-300 flex items-center space-x-2 w-full sm:w-auto justify-center"
+              className="group bg-gradient-to-r from-pink-500 to-purple-600 text-white px-6 py-3 rounded-xl font-semibold text-base hover:shadow-xl hover:scale-105 transition-all duration-300 flex items-center space-x-2 w-full sm:w-auto justify-center"
               onMouseEnter={() => setIsHovering(true)}
               onMouseLeave={() => setIsHovering(false)}
             >
               <span>Get Started Free</span>
               <ArrowRight
-                className={`w-4 h-4 sm:w-5 sm:h-5 transition-transform duration-300 ${
+                className={`w-5 h-5 transition-transform duration-300 ${
                   isHovering ? 'translate-x-1' : ''
                 }`}
               />
+            </Link>
+            
+            {/* Optional: Add secondary button */}
+            <Link
+              to="/login"
+              className="group bg-white/90 backdrop-blur-sm text-gray-800 px-6 py-3 rounded-xl font-semibold text-base hover:bg-white hover:shadow-lg hover:scale-105 transition-all duration-300 flex items-center space-x-2 w-full sm:w-auto justify-center border border-gray-200/50"
+            >
+              <span>Sign In</span>
             </Link>
           </div>
         </div>
