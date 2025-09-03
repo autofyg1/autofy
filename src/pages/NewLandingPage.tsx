@@ -2,6 +2,8 @@ import React, { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { gsap } from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
+import WorkflowDemo from '../components/WorkflowDemo';
+import { AIWorkflowAutomation } from '../components/Animated-card';
 
 // Register GSAP plugins
 gsap.registerPlugin(ScrollTrigger);
@@ -22,8 +24,6 @@ import {
   Users
 } from 'lucide-react';
 
-import WorkflowDemo from '../components/WorkflowDemo';
-import { AIWorkflowAutomation } from '../components/animated-card';
 
 // Utility function for class names
 const cn = (...classes: (string | undefined | null | false)[]): string => {
