@@ -5,6 +5,8 @@ import { ScrollTrigger } from 'gsap/ScrollTrigger';
 
 // Register GSAP plugins
 gsap.registerPlugin(ScrollTrigger);
+
+// Import ALL required icons
 import { 
   ArrowRight, 
   Zap, 
@@ -19,6 +21,7 @@ import {
   Clock,
   Users
 } from 'lucide-react';
+
 import WorkflowDemo from '../components/WorkflowDemo';
 import { AIWorkflowAutomation } from '../components/animated-card';
 
@@ -27,7 +30,7 @@ const cn = (...classes: (string | undefined | null | false)[]): string => {
   return classes.filter(Boolean).join(' ');
 };
 
-// Card Components
+// Card Components with proper TypeScript
 interface CardProps extends React.HTMLAttributes<HTMLDivElement> {}
 
 function AnimatedCard({ className, ...props }: CardProps) {
@@ -42,7 +45,7 @@ function AnimatedCard({ className, ...props }: CardProps) {
       )}
       {...props}
     />
-  )
+  );
 }
 
 function CardBody({ className, ...props }: CardProps) {
@@ -50,12 +53,12 @@ function CardBody({ className, ...props }: CardProps) {
     <div
       role="group"
       className={cn(
-        "flex flex-col space-y-3 border-t border-gray-200/30 p-6 ",
+        "flex flex-col space-y-3 border-t border-gray-200/30 p-6",
         className
       )}
       {...props}
     />
-  )
+  );
 }
 
 interface CardTitleProps extends React.HTMLAttributes<HTMLHeadingElement> {}
@@ -69,7 +72,7 @@ function CardTitle({ className, ...props }: CardTitleProps) {
       )}
       {...props}
     />
-  )
+  );
 }
 
 interface CardDescriptionProps extends React.HTMLAttributes<HTMLParagraphElement> {}
@@ -83,7 +86,7 @@ function CardDescription({ className, ...props }: CardDescriptionProps) {
       )}
       {...props}
     />
-  )
+  );
 }
 
 function CardVisual({ className, ...props }: CardProps) {
@@ -92,14 +95,14 @@ function CardVisual({ className, ...props }: CardProps) {
       className={cn("h-[200px] w-[380px] overflow-hidden", className)}
       {...props}
     />
-  )
+  );
 }
 
 // Visual Component Props
 interface VisualProps {
-  mainColor?: string
-  secondaryColor?: string
-  gridColor?: string
+  mainColor?: string;
+  secondaryColor?: string;
+  gridColor?: string;
 }
 
 // Shared Components
@@ -130,8 +133,8 @@ const EllipseGradient: React.FC<{ color: string }> = ({ color }) => {
         </defs>
       </svg>
     </div>
-  )
-}
+  );
+};
 
 const GridLayer: React.FC<{ color: string }> = ({ color }) => {
   return (
@@ -139,8 +142,8 @@ const GridLayer: React.FC<{ color: string }> = ({ color }) => {
       style={{ "--grid-color": color } as React.CSSProperties}
       className="pointer-events-none absolute inset-0 z-[4] h-full w-full bg-transparent bg-[linear-gradient(to_right,var(--grid-color)_1px,transparent_1px),linear-gradient(to_bottom,var(--grid-color)_1px,transparent_1px)] [mask-image:radial-gradient(ellipse_60%_60%_at_50%_50%,#000_70%,transparent_100%)] bg-[size:24px_24px] bg-center opacity-60"
     />
-  )
-}
+  );
+};
 
 // Visual 1: Workflow Automation Analytics
 const WorkflowAnalyticsVisual: React.FC<VisualProps> = ({
@@ -148,30 +151,30 @@ const WorkflowAnalyticsVisual: React.FC<VisualProps> = ({
   secondaryColor = "#06b6d4",
   gridColor = "#80808020",
 }) => {
-  const [hovered, setHovered] = useState(false)
-  const [automationProgress, setAutomationProgress] = useState(25)
-  const [efficiencyProgress, setEfficiencyProgress] = useState(0) // ✅ Fixed this line
+  const [hovered, setHovered] = useState(false);
+  const [automationProgress, setAutomationProgress] = useState(25);
+  const [efficiencyProgress, setEfficiencyProgress] = useState(0);
 
   useEffect(() => {
-    let timeout: NodeJS.Timeout
+    let timeout: NodeJS.Timeout;
 
     if (hovered) {
       timeout = setTimeout(() => {
-        setAutomationProgress(85)
-        setEfficiencyProgress(92)
-      }, 300)
+        setAutomationProgress(85);
+        setEfficiencyProgress(92);
+      }, 300);
     } else {
-      setAutomationProgress(25)
-      setEfficiencyProgress(0)
+      setAutomationProgress(25);
+      setEfficiencyProgress(0);
     }
 
-    return () => clearTimeout(timeout)
-  }, [hovered])
+    return () => clearTimeout(timeout);
+  }, [hovered]);
 
-  const radius = 45
-  const circumference = 2 * Math.PI * radius
-  const automationDashoffset = circumference - (automationProgress / 100) * circumference
-  const efficiencyDashoffset = circumference - (efficiencyProgress / 100) * circumference
+  const radius = 45;
+  const circumference = 2 * Math.PI * radius;
+  const automationDashoffset = circumference - (automationProgress / 100) * circumference;
+  const efficiencyDashoffset = circumference - (efficiencyProgress / 100) * circumference;
 
   const automationMetrics = [
     { id: 1, translateX: "120", translateY: "60", text: "Email", icon: "📧" },
@@ -180,7 +183,7 @@ const WorkflowAnalyticsVisual: React.FC<VisualProps> = ({
     { id: 4, translateX: "-140", translateY: "0", text: "Database", icon: "🗄️" },
     { id: 5, translateX: "-120", translateY: "60", text: "API", icon: "🔗" },
     { id: 6, translateX: "-120", translateY: "-60", text: "Webhook", icon: "🎯" },
-  ]
+  ];
 
   return (
     <>
@@ -281,8 +284,8 @@ const WorkflowAnalyticsVisual: React.FC<VisualProps> = ({
         <GridLayer color={gridColor} />
       </div>
     </>
-  )
-}
+  );
+};
 
 // Visual 2: Data Flow Animation
 const DataFlowVisual: React.FC<VisualProps> = ({
@@ -290,7 +293,7 @@ const DataFlowVisual: React.FC<VisualProps> = ({
   secondaryColor = "#8b5cf6",
   gridColor = "#80808020",
 }) => {
-  const [hovered, setHovered] = useState(false)
+  const [hovered, setHovered] = useState(false);
 
   return (
     <>
@@ -379,35 +382,35 @@ const DataFlowVisual: React.FC<VisualProps> = ({
         <GridLayer color={gridColor} />
       </div>
     </>
-  )
-}
+  );
+};
 
-// Visual 3: Workflow Builder - UPDATED
+// Visual 3: Workflow Builder
 const WorkflowBuilderVisual: React.FC<VisualProps> = ({
   mainColor = "#6366f1",
   secondaryColor = "#14b8a6",
   gridColor = "#6366f120",
 }) => {
-  const [hovered, setHovered] = useState(false)
-  const [activeNode, setActiveNode] = useState(0)
+  const [hovered, setHovered] = useState(false);
+  const [activeNode, setActiveNode] = useState(0);
 
   useEffect(() => {
     if (hovered) {
       const interval = setInterval(() => {
-        setActiveNode((prev) => (prev + 1) % 4)
-      }, 500)
-      return () => clearInterval(interval)
+        setActiveNode((prev) => (prev + 1) % 4);
+      }, 500);
+      return () => clearInterval(interval);
     } else {
-      setActiveNode(0)
+      setActiveNode(0);
     }
-  }, [hovered])
+  }, [hovered]);
 
   const nodes = [
     { id: 1, x: 60, y: 100, label: "Trigger", icon: "⚡" },
     { id: 2, x: 140, y: 100, label: "Process", icon: "⚙️" },
     { id: 3, x: 220, y: 100, label: "Transform", icon: "🔄" },
     { id: 4, x: 300, y: 100, label: "Deploy", icon: "🚀" },
-  ]
+  ];
 
   return (
     <>
@@ -503,15 +506,16 @@ const WorkflowBuilderVisual: React.FC<VisualProps> = ({
         <GridLayer color={gridColor} />
       </div>
     </>
-  )
-}
+  );
+};
+
 // Visual 4: Integration Network
 const IntegrationNetworkVisual: React.FC<VisualProps> = ({
   mainColor = "#10b981",
   secondaryColor = "#3b82f6",
   gridColor = "#80808020",
 }) => {
-  const [hovered, setHovered] = useState(false)
+  const [hovered, setHovered] = useState(false);
 
   const integrations = [
     { id: 1, x: 190, y: 100, size: 12, icon: "🤖", name: "AI" },
@@ -521,7 +525,7 @@ const IntegrationNetworkVisual: React.FC<VisualProps> = ({
     { id: 5, x: 280, y: 140, size: 8, icon: "📊", name: "Analytics" },
     { id: 6, x: 190, y: 40, size: 6, icon: "🔗", name: "API" },
     { id: 7, x: 190, y: 160, size: 6, icon: "💾", name: "Database" },
-  ]
+  ];
 
   return (
     <>
@@ -577,8 +581,8 @@ const IntegrationNetworkVisual: React.FC<VisualProps> = ({
         <GridLayer color={gridColor} />
       </div>
     </>
-  )
-}
+  );
+};
 
 // Interactive Cards Component
 function InteractiveCards() {
@@ -603,7 +607,7 @@ function InteractiveCards() {
       title: "Integration Network",
       description: "Connect all your favorite tools and services in a unified automation ecosystem."
     }
-  ]
+  ];
 
   return (
     <div className="w-full">
@@ -622,14 +626,18 @@ function InteractiveCards() {
           ))}
         </div>
 
-        {/* AI Workflow Automation Card - Added below the other cards */}
-        <div className="mt-16 flex justify-center ">
+        {/* AI Workflow Automation Card */}
+        <div className="mt-16 flex justify-center">
           <AnimatedCard className="hover:shadow-2xl hover:shadow-purple-500/20 transition-all duration-500 ai-workflow-card">
             <CardVisual>
               <AIWorkflowAutomation />
             </CardVisual>
             <CardBody>
-              <CardTitle>Smart Workflow Creator<br></br><span className='text-sm text-gray-700'>[Upcoming feature]</span></CardTitle>
+              <CardTitle>
+                Smart Workflow Creator
+                <br />
+                <span className="text-sm text-gray-700">[Upcoming feature]</span>
+              </CardTitle>
               <CardDescription>
                 Watch as AI transforms your simple text prompt into a complete automated workflow. 
                 Hover above to see the step-by-step process unfold in real-time.
@@ -639,7 +647,7 @@ function InteractiveCards() {
         </div>
       </div>
     </div>
-  )
+  );
 }
 
 const NewLandingPage: React.FC = () => {
@@ -652,7 +660,7 @@ const NewLandingPage: React.FC = () => {
     features: false
   });
   const [isHovering, setIsHovering] = useState(false);
-  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false); // Add this line
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   // 3D transform function for hero text
   const get3DTransform = (intensity: number) => {
@@ -792,7 +800,6 @@ const NewLandingPage: React.FC = () => {
       }
     });
 
-
     // Cleanup
     return () => {
       ScrollTrigger.getAll().forEach(trigger => trigger.kill());
@@ -800,108 +807,108 @@ const NewLandingPage: React.FC = () => {
   }, []);
 
   return (
-    <div className="min-h-screen bg-white font-inter">
-{/* Navigation */}
-<nav className="fixed top-0 w-screen z-50 flex justify-center">
-  <div className="mt-4 bg-white rounded-2xl shadow-md px-6 py-3 flex items-center justify-between max-w-6xl w-full">
-    
-    {/* Left: Logo + Autofy */}
-    <div className="flex items-center space-x-2">
-      <img 
-        src="https://cdn-icons-png.flaticon.com/512/60/60525.png" 
-        alt="logo" 
-        className="w-6 h-6 rotate-[-50deg]"
-      />
-      <span className="text-lg font-medium text-gray-800">Autofy</span>
-    </div>
+    <div className="min-h-screen bg-white font-space-grotesk">
+      {/* Navigation */}
+      <nav className="fixed top-0 w-screen z-50 flex justify-center">
+        <div className="mt-4 bg-white/90 backdrop-blur-sm rounded-2xl shadow-lg border border-gray-200/50 px-6 py-3 flex items-center justify-between max-w-6xl mx-4 w-full">
+          
+          {/* Left: Logo + Autofy */}
+          <div className="flex items-center space-x-2">
+            <div className="w-6 h-6 rounded bg-gradient-to-r from-violet-500 to-purple-600 flex items-center justify-center">
+              <Zap className="w-4 h-4 text-white" />
+            </div>
+            <span className="text-lg font-semibold text-gray-800">Autofy</span>
+          </div>
 
-    {/* Center: Links */}
-    <div className="hidden md:flex items-center space-x-8">
-      <a href="#blog" className="text-gray-600 hover:text-gray-900 transition-colors font-medium">
-        Blog
-      </a>
-      <a href="#pricing" className="text-gray-600 hover:text-gray-900 transition-colors font-medium">
-        Pricing
-      </a>
-      <a href="#mission" className="text-gray-600 hover:text-gray-900 transition-colors font-medium">
-        Our Mission
-      </a>
-    </div>
-    {/* Right: Auth Buttons */}
-    <div className="flex items-center space-x-3">
-      {/* Sign In Button */}
-      <Link 
-        to="/login" 
-        className="hidden sm:inline-flex items-center px-4 py-2 text-gray-700 hover:text-gray-900 font-medium transition-colors duration-200"
-      >
-        Sign In
-      </Link>
-      
-      {/* Sign Up Button */}
-      <Link 
-        to="/signup" 
-        className="bg-gradient-to-r from-violet-500 to-purple-600 text-white px-5 py-2 rounded-lg hover:from-violet-600 hover:to-purple-700 transition-all duration-300 font-semibold shadow-lg hover:shadow-xl hover:scale-105 flex items-center space-x-1"
-      >
-        <span>Get Started</span>
-      </Link>
-      
-      {/* Mobile Menu Button (for small screens) */}
-      <button 
-        className="md:hidden p-2 text-gray-600 hover:text-gray-900 transition-colors"
-        onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-      >
-        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path 
-            strokeLinecap="round" 
-            strokeLinejoin="round" 
-            strokeWidth={2} 
-            d={isMobileMenuOpen ? "M6 18L18 6M6 6l12 12" : "M4 6h16M4 12h16M4 18h16"} 
-          />
-        </svg>
-      </button>
-
-      {/* Mobile Menu Dropdown */}
-      {isMobileMenuOpen && (
-        <div className="absolute top-full left-4 right-4 mt-2 bg-white/95 backdrop-blur-sm rounded-2xl shadow-xl border border-gray-200/50 py-4 md:hidden">
-          <div className="flex flex-col space-y-1 px-4">
-            <a href="#features" className="text-gray-600 hover:text-gray-900 transition-colors font-medium py-2">
+          {/* Center: Links */}
+          <div className="hidden md:flex items-center space-x-8">
+            <a href="#features" className="text-gray-600 hover:text-gray-900 transition-colors font-medium">
               Features
             </a>
-            <a href="#pricing" className="text-gray-600 hover:text-gray-900 transition-colors font-medium py-2">
+            <a href="#pricing" className="text-gray-600 hover:text-gray-900 transition-colors font-medium">
               Pricing
             </a>
-            <a href="#integrations" className="text-gray-600 hover:text-gray-900 transition-colors font-medium py-2">
+            <a href="#integrations" className="text-gray-600 hover:text-gray-900 transition-colors font-medium">
               Integrations
             </a>
-            <a href="#about" className="text-gray-600 hover:text-gray-900 transition-colors font-medium py-2">
+            <a href="#about" className="text-gray-600 hover:text-gray-900 transition-colors font-medium">
               About
             </a>
+          </div>
+
+          {/* Right: Auth Buttons */}
+          <div className="flex items-center space-x-3">
+            {/* Sign In Button */}
+            <Link 
+              to="/login" 
+              className="hidden sm:inline-flex items-center px-4 py-2 text-gray-700 hover:text-gray-900 font-medium transition-colors duration-200"
+            >
+              Sign In
+            </Link>
             
-            {/* Mobile Auth Buttons */}
-            <div className="border-t border-gray-200/50 pt-4 mt-4 space-y-2">
-              <Link 
-                to="/login" 
-                className="block text-center text-gray-700 hover:text-gray-900 font-medium py-2 transition-colors"
-                onClick={() => setIsMobileMenuOpen(false)}
-              >
-                Sign In
-              </Link>
-              <Link 
-                to="/signup" 
-                className="block bg-gradient-to-r from-violet-500 to-purple-600 text-white px-4 py-2 rounded-lg hover:from-violet-600 hover:to-purple-700 transition-all duration-300 font-semibold text-center"
-                onClick={() => setIsMobileMenuOpen(false)}
-              >
-                Get Started Free
-              </Link>
-            </div>
+            {/* Sign Up Button */}
+            <Link 
+              to="/signup" 
+              className="bg-gradient-to-r from-violet-500 to-purple-600 text-white px-5 py-2 rounded-lg hover:from-violet-600 hover:to-purple-700 transition-all duration-300 font-semibold shadow-lg hover:shadow-xl hover:scale-105 flex items-center space-x-1"
+            >
+              <span>Get Started</span>
+            </Link>
+            
+            {/* Mobile Menu Button */}
+            <button 
+              className="md:hidden p-2 text-gray-600 hover:text-gray-900 transition-colors"
+              onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+            >
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path 
+                  strokeLinecap="round" 
+                  strokeLinejoin="round" 
+                  strokeWidth={2} 
+                  d={isMobileMenuOpen ? "M6 18L18 6M6 6l12 12" : "M4 6h16M4 12h16M4 18h16"} 
+                />
+              </svg>
+            </button>
+
+            {/* Mobile Menu Dropdown */}
+            {isMobileMenuOpen && (
+              <div className="absolute top-full left-4 right-4 mt-2 bg-white/95 backdrop-blur-sm rounded-2xl shadow-xl border border-gray-200/50 py-4 md:hidden">
+                <div className="flex flex-col space-y-1 px-4">
+                  <a href="#features" className="text-gray-600 hover:text-gray-900 transition-colors font-medium py-2">
+                    Features
+                  </a>
+                  <a href="#pricing" className="text-gray-600 hover:text-gray-900 transition-colors font-medium py-2">
+                    Pricing
+                  </a>
+                  <a href="#integrations" className="text-gray-600 hover:text-gray-900 transition-colors font-medium py-2">
+                    Integrations
+                  </a>
+                  <a href="#about" className="text-gray-600 hover:text-gray-900 transition-colors font-medium py-2">
+                    About
+                  </a>
+                  
+                  {/* Mobile Auth Buttons */}
+                  <div className="border-t border-gray-200/50 pt-4 mt-4 space-y-2">
+                    <Link 
+                      to="/login" 
+                      className="block text-center text-gray-700 hover:text-gray-900 font-medium py-2 transition-colors"
+                      onClick={() => setIsMobileMenuOpen(false)}
+                    >
+                      Sign In
+                    </Link>
+                    <Link 
+                      to="/signup" 
+                      className="block bg-gradient-to-r from-violet-500 to-purple-600 text-white px-4 py-2 rounded-lg hover:from-violet-600 hover:to-purple-700 transition-all duration-300 font-semibold text-center"
+                      onClick={() => setIsMobileMenuOpen(false)}
+                    >
+                      Get Started Free
+                    </Link>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
         </div>
-      )}
-    </div>
-  </div>
-</nav>
-
-
+      </nav>
 
       {/* Hero Section */}
       <section 
@@ -920,9 +927,6 @@ const NewLandingPage: React.FC = () => {
             <source src="https://pmvzgrlufqgbxgpkaqke.supabase.co/storage/v1/object/public/video/background-video.mp4" type="video/mp4" />
             <div className="w-full h-full bg-gradient-to-br from-violet-50/50 via-white to-purple-50/30"></div>
           </video>
-          
-          {/* Video overlay for better text visibility */}
-
         </div>
 
         {/* Animated particles */}
@@ -941,47 +945,47 @@ const NewLandingPage: React.FC = () => {
           ))}
         </div>
         
-             {/* Hero Text Container */}
-      <div className="relative z-20 px-4 sm:px-6 lg:px-8 w-full max-w-xs sm:max-w-md md:max-w-2xl lg:max-w-4xl xl:max-w-5xl mx-auto text-center md:text-left md:mx-0 md:absolute md:top-[15%] md:left-16 lg:left-20 xl:left-24 hero-text">
-        <h1 className="text-2xl sm:text-3xl md:text-5xl lg:text-6xl xl:text-7xl font-extrabold leading-tight text-gray-900 mb-4 md:mb-6">
-          <span className="block sm:inline">Automate Tasks</span>
-          <br className="hidden sm:block" />
-          <span className="bg-gradient-to-r from-pink-400 via-purple-400 to-blue-400 bg-clip-text text-transparent">
-            Effortlessly
-          </span>
-        </h1>
-        
-        <div className="transform transition-all duration-1000" style={{ transform: get3DTransform(0.1) }}>
-          <p className="text-sm sm:text-base md:text-lg lg:text-xl text-gray-900 mb-6 sm:mb-8 max-w-xs sm:max-w-md md:max-w-2xl leading-relaxed drop-shadow-lg mx-auto md:mx-0">
-            Transform your workflows with intelligent automation. Connect apps,
-            eliminate repetitive tasks, and focus on what truly matters.
-          </p>
+        {/* Hero Text Container */}
+        <div className="relative z-20 px-4 sm:px-6 lg:px-8 w-full max-w-xs sm:max-w-md md:max-w-2xl lg:max-w-4xl xl:max-w-5xl mx-auto text-center md:text-left md:mx-0 md:absolute md:top-[15%] md:left-16 lg:left-20 xl:left-24 hero-text">
+          <h1 className="text-2xl sm:text-3xl md:text-5xl lg:text-6xl xl:text-7xl font-extrabold leading-tight text-gray-900 mb-4 md:mb-6">
+            <span className="block sm:inline">Automate Tasks</span>
+            <br className="hidden sm:block" />
+            <span className="bg-gradient-to-r from-pink-400 via-purple-400 to-blue-400 bg-clip-text text-transparent">
+              Effortlessly
+            </span>
+          </h1>
           
-          <div className="flex flex-col sm:flex-row items-center justify-center md:justify-start sm:space-x-4 space-y-3 sm:space-y-0 hero-buttons">
-            <Link
-              to="/signup"
-              className="group bg-gradient-to-r from-pink-500 to-purple-600 text-white px-6 py-3 rounded-xl font-semibold text-base hover:shadow-xl hover:scale-105 transition-all duration-300 flex items-center space-x-2 w-full sm:w-auto justify-center"
-              onMouseEnter={() => setIsHovering(true)}
-              onMouseLeave={() => setIsHovering(false)}
-            >
-              <span>Get Started Free</span>
-              <ArrowRight
-                className={`w-5 h-5 transition-transform duration-300 ${
-                  isHovering ? 'translate-x-1' : ''
-                }`}
-              />
-            </Link>
+          <div className="transform transition-all duration-1000" style={{ transform: get3DTransform(0.1) }}>
+            <p className="text-sm sm:text-base md:text-lg lg:text-xl text-gray-900 mb-6 sm:mb-8 max-w-xs sm:max-w-md md:max-w-2xl leading-relaxed drop-shadow-lg mx-auto md:mx-0">
+              Transform your workflows with intelligent automation. Connect apps,
+              eliminate repetitive tasks, and focus on what truly matters.
+            </p>
             
-            {/* Optional: Add secondary button */}
-            <Link
-              to="/login"
-              className="group bg-white/90 backdrop-blur-sm text-gray-800 px-6 py-3 rounded-xl font-semibold text-base hover:bg-white hover:shadow-lg hover:scale-105 transition-all duration-300 flex items-center space-x-2 w-full sm:w-auto justify-center border border-gray-200/50"
-            >
-              <span>Sign In</span>
-            </Link>
+            <div className="flex flex-col sm:flex-row items-center justify-center md:justify-start sm:space-x-4 space-y-3 sm:space-y-0 hero-buttons">
+              <Link
+                to="/signup"
+                className="group bg-gradient-to-r from-pink-500 to-purple-600 text-white px-6 py-3 rounded-xl font-semibold text-base hover:shadow-xl hover:scale-105 transition-all duration-300 flex items-center space-x-2 w-full sm:w-auto justify-center"
+                onMouseEnter={() => setIsHovering(true)}
+                onMouseLeave={() => setIsHovering(false)}
+              >
+                <span>Get Started Free</span>
+                <ArrowRight
+                  className={`w-5 h-5 transition-transform duration-300 ${
+                    isHovering ? 'translate-x-1' : ''
+                  }`}
+                />
+              </Link>
+              
+              <Link
+                to="/login"
+                className="group bg-white/90 backdrop-blur-sm text-gray-800 px-6 py-3 rounded-xl font-semibold text-base hover:bg-white hover:shadow-lg hover:scale-105 transition-all duration-300 flex items-center space-x-2 w-full sm:w-auto justify-center border border-gray-200/50"
+              >
+                <span>Sign In</span>
+              </Link>
+            </div>
           </div>
         </div>
-      </div>
+
         {/* Scroll indicator */}
         <div className="absolute bottom-8 left-1/2 transform -translate-x-1/2 z-20">
           <div className="w-6 h-10 border-2 border-white/60 rounded-full flex justify-center">
@@ -1150,18 +1154,11 @@ const NewLandingPage: React.FC = () => {
       </footer>
 
       <style>{`
-     @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&display=swap');
         
         .font-space-grotesk {
           font-family: 'Space Grotesk', sans-serif;
         }
-        
-        /* Remove the old Inter font styles */
-        .font-inter {
-          font-family: 'Space Grotesk', sans-serif;
-        }
-        
-       
         
         @keyframes float {
           0%, 100% {
