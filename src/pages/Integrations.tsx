@@ -218,10 +218,16 @@ const Integrations: React.FC = () => {
   const handleConnectIntegration = async (app: IntegrationApp) => {
     const serviceName = app.name.toLowerCase();
     
-    console.log('Connecting integration:', serviceName);
+    console.log('=== HANDLE CONNECT INTEGRATION ===');
+    console.log('App:', app.name);
+    console.log('Service name:', serviceName);
+    console.log('Current integrations:', integrations);
+    console.log('Is connected?', isConnected(app.name));
+    console.log('OAuth services:', ['gmail', 'notion']);
     
     // Handle Telegram specially
     if (serviceName === 'telegram') {
+      console.log('Opening Telegram modal');
       setTelegramModalOpen(true);
       return;
     }
@@ -231,11 +237,19 @@ const Integrations: React.FC = () => {
     
     if (oauthServices.includes(serviceName)) {
       // Initiate OAuth flow
-      console.log('Using OAuth flow for:', serviceName);
+      console.log('=== INITIATING OAUTH FLOW ===');
+      console.log('Service:', serviceName);
+      console.log('Current URL before OAuth:', window.location.href);
+      console.log('SessionStorage before OAuth:', Object.keys(sessionStorage).map(key => `${key}: ${key.includes('token') || key.includes('auth') ? '[REDACTED]' : sessionStorage.getItem(key)}`));
+      
       const { error } = initiateOAuth(serviceName);
+      
       if (error) {
-        console.error('Failed to initiate OAuth:', error);
+        console.error('=== OAUTH INITIATION FAILED ===');
+        console.error('Error:', error);
         alert(`Failed to start OAuth flow: ${error}`);
+      } else {
+        console.log('OAuth initiation successful, should redirect now...');
       }
     } else {
       // Fallback to mock credentials for other services
@@ -257,6 +271,8 @@ const Integrations: React.FC = () => {
       
       setConnectingService(null);
     }
+    
+    console.log('=== END HANDLE CONNECT INTEGRATION ===');
   };
 
   const handleDisconnectIntegration = async (app: IntegrationApp) => {

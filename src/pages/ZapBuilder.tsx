@@ -314,7 +314,7 @@ const ZapBuilder: React.FC = () => {
 
   const handleSaveZap = async () => {
     if (!canSaveZap()) {
-      setError('Please complete all steps and provide a zap name');
+      setError('Please complete all steps and provide a workflow name');
       return;
     }
 
@@ -377,7 +377,7 @@ const ZapBuilder: React.FC = () => {
           <div className="flex items-center justify-between">
             <div>
               <h1 className="text-2xl font-bold text-white">
-                {isEditMode ? 'Edit Workflow' : 'Zap Builder'}
+                {isEditMode ? 'Edit Workflow' : 'Workflow Builder'}
               </h1>
               <p className="text-gray-400 mt-1">
                 {isEditMode ? 'Modify your automation workflow' : 'Create your automation workflow'}
@@ -489,13 +489,13 @@ const ZapBuilder: React.FC = () => {
               
               {!loadingZap && (
                 <>
-              {/* Zap Details */}
+              {/* Workflow Details */}
               <div className="mb-8 p-6 bg-gray-800 rounded-xl border border-gray-700">
-                <h2 className="text-xl font-semibold text-white mb-4">Zap Details</h2>
+                <h2 className="text-xl font-semibold text-white mb-4">Workflow Details</h2>
                 <div className="grid md:grid-cols-2 gap-4">
                   <div>
                     <label className="block text-sm font-medium text-gray-300 mb-2">
-                      Zap Name <span className="text-red-400">*</span>
+                      Workflow Name <span className="text-red-400">*</span>
                     </label>
                     <input
                       type="text"
@@ -513,7 +513,7 @@ const ZapBuilder: React.FC = () => {
                       type="text"
                       value={zapDescription}
                       onChange={(e) => setZapDescription(e.target.value)}
-                      placeholder="Brief description of what this zap does"
+                      placeholder="Brief description of what this workflow does"
                       className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:border-blue-500 focus:outline-none"
                     />
                   </div>
@@ -640,8 +640,8 @@ const ZapBuilder: React.FC = () => {
                   {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
                   <span>
                     {saving 
-                      ? (isEditMode ? 'Updating Zap...' : 'Saving Zap...') 
-                      : (isEditMode ? 'Update & Activate Zap' : 'Save & Activate Zap')
+                      ? (isEditMode ? 'Updating Workflow...' : 'Saving Workflow...') 
+                      : (isEditMode ? 'Update & Activate Workflow' : 'Save & Activate Workflow')
                     }
                   </span>
                 </button>

@@ -4,6 +4,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { useIntegrations } from '../hooks/useIntegrations';
 import { supabase } from '../lib/supabase';
 import { oauthConfigs, getConfigRedirectUri } from '../lib/oauth';
+import { apiClient } from '../lib/api-client';
 import { Loader2, CheckCircle, AlertCircle } from 'lucide-react';
 
 const OAuthCallback: React.FC = () => {
@@ -96,58 +97,106 @@ const OAuthCallback: React.FC = () => {
           console.warn('4. Browser security restrictions');
         }
 
-        // Ensure user is authenticated
+        // Check authentication status with enhanced handling
         if (!user) {
-          console.error('User not authenticated');
-          throw new Error('User not authenticated');
+          console.warn('User not authenticated in React context');
+          
+          // Check if we have preserved auth data
+          const oauthPreservedAuth = sessionStorage.getItem('oauth-preserved-auth');
+          if (oauthPreservedAuth) {
+            console.log('🔄 OAuth: User context missing but preserved auth found, waiting for restoration...');
+            // Give the auth context more time to process preserved auth
+            let attempts = 0;
+            const maxAttempts = 10; // Wait up to 5 seconds (10 attempts * 500ms)
+            
+            while (attempts < maxAttempts && !user) {
+              await new Promise(resolve => setTimeout(resolve, 500));
+              attempts++;
+              console.log(`🔄 OAuth: Waiting for auth restoration, attempt ${attempts}/${maxAttempts}`);
+              
+              // Check if user context has been updated
+              if (user) {
+                console.log('✅ OAuth: User context restored successfully');
+                break;
+              }
+            }
+            
+            if (!user) {
+              console.warn('⚠️ OAuth: Auth restoration timed out, but continuing with OAuth flow');
+              // Don't throw error - continue with OAuth process anyway
+              // The backend will validate the session
+            }
+          } else {
+            console.error('❌ OAuth: No user authentication and no preserved auth');
+            // Redirect to login instead of throwing error
+            setStatus('error');
+            setMessage('Please log in first to connect integrations');
+            setTimeout(() => {
+              navigate('/login');
+            }, 2000);
+            return;
+          }
         }
 
         setMessage('Exchanging authorization code for tokens...');
-        console.log('=== CALLING EDGE FUNCTION ===');
+        console.log('=== CALLING BACKEND OAUTH ENDPOINT ===');
 
-        // Call our edge function to exchange code for tokens
-        const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/oauth-exchange`, {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
+        // Call our backend OAuth endpoint to exchange code for tokens
+        console.log('=== CALLING BACKEND OAUTH EXCHANGE ===');
+        console.log('Service:', service);
+        console.log('Code length:', code?.length);
+        console.log('Redirect URI:', getConfigRedirectUri(oauthConfigs[service]));
+        
+        let credentials;
+        try {
+          const response = await apiClient.exchangeOAuthCode(
             service,
             code,
-            state,
-            redirectUri: getConfigRedirectUri(oauthConfigs[service]), // Get the redirectUri using helper function
-            debug: true // Add debug flag
-          })
-        });
-
-        console.log('Edge function response status:', response.status);
-        
-        if (!response.ok) {
-          const errorData = await response.json();
-          console.error('Edge function error:', errorData);
-          
-          // Handle specific OAuth errors
-          if (errorData.error && errorData.error.includes('invalid_grant')) {
-            throw new Error('Authorization code has expired or been used. Please try connecting again.');
-          }
-          
-          throw new Error(errorData.error || 'Failed to exchange tokens');
+            getConfigRedirectUri(oauthConfigs[service]),
+            state
+          );
+          credentials = response.credentials;
+          console.log('✅ OAuth exchange successful');
+          console.log('Credentials received:', credentials ? 'present' : 'missing');
+          console.log('Credentials keys:', credentials ? Object.keys(credentials) : 'none');
+        } catch (exchangeError) {
+          console.error('❌ OAuth exchange failed:');
+          console.error('Error type:', exchangeError?.constructor?.name);
+          console.error('Error message:', exchangeError?.message);
+          console.error('Full error:', exchangeError);
+          throw new Error(`OAuth token exchange failed: ${exchangeError?.message || 'Unknown error'}`);
         }
-
-        const { credentials } = await response.json();
-        console.log('Received credentials from edge function:', credentials ? 'present' : 'missing');
 
         setMessage('Saving integration credentials...');
-        console.log('=== SAVING TO SUPABASE ===');
+        console.log('=== SAVING INTEGRATION TO DATABASE ===');
+        console.log('Service:', service);
+        console.log('Credentials for storage:', {
+          hasAccessToken: !!credentials?.access_token,
+          hasRefreshToken: !!credentials?.refresh_token,
+          tokenType: credentials?.token_type,
+          expiresIn: credentials?.expires_in
+        });
 
         // Store the credentials in Supabase
-        const { error: integrationError } = await connectIntegration(service, credentials);
-
-        if (integrationError) {
-          console.error('Integration save error:', integrationError);
-          throw new Error(integrationError);
+        let integrationResult;
+        try {
+          integrationResult = await connectIntegration(service, credentials);
+          console.log('Integration result:', integrationResult);
+        } catch (integrationError) {
+          console.error('❌ Integration creation failed:');
+          console.error('Error type:', integrationError?.constructor?.name);
+          console.error('Error message:', integrationError?.message);
+          console.error('Full error:', integrationError);
+          throw new Error(`Failed to save integration: ${integrationError?.message || 'Unknown error'}`);
         }
+
+        if (integrationResult?.error) {
+          console.error('❌ Integration save returned error:', integrationResult.error);
+          throw new Error(`Integration save failed: ${integrationResult.error}`);
+        }
+        
+        console.log('✅ Integration saved successfully');
+        console.log('Integration data:', integrationResult?.data);
 
         // Clear OAuth state after successful processing
         sessionStorage.removeItem('oauth_state');

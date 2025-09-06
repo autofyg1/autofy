@@ -2,10 +2,11 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Link, Navigate } from 'react-router-dom';
 import { gsap } from 'gsap';
 import { useAuth } from '../contexts/AuthContext';
-import { Zap, Mail, Lock, Eye, EyeOff, Loader2, CheckCircle } from 'lucide-react';
+import { Zap, Mail, Lock, Eye, EyeOff, Loader2, CheckCircle, User } from 'lucide-react';
 
 const Signup: React.FC = () => {
   const formRef = useRef<HTMLDivElement>(null);
+  const [fullName, setFullName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -46,7 +47,7 @@ const Signup: React.FC = () => {
       return;
     }
 
-    const { error } = await signUp(email, password);
+    const { error } = await signUp(email, password, fullName);
     
     if (error) {
       setError(error.message);
@@ -106,7 +107,25 @@ const Signup: React.FC = () => {
           )}
 
           {/* Form */}
-          <form onSubmit={handleSubmit} className="space-y-6">
+          <form onSubmit={handleSubmit} className="space-y-5">
+            <div>
+              <label htmlFor="fullName" className="block text-sm font-medium text-gray-300 mb-2">
+                Full Name
+              </label>
+              <div className="relative">
+                <User className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
+                <input
+                  id="fullName"
+                  type="text"
+                  value={fullName}
+                  onChange={(e) => setFullName(e.target.value)}
+                  className="w-full pl-10 pr-4 py-3 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:border-blue-500 focus:outline-none transition-colors"
+                  placeholder="Enter your full name"
+                  required
+                />
+              </div>
+            </div>
+
             <div>
               <label htmlFor="email" className="block text-sm font-medium text-gray-300 mb-2">
                 Email Address

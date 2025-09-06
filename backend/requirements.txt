@@ -1,0 +1,47 @@
+# LangChain Core
+langchain==0.2.16
+langchain-core>=0.2.40,<0.3.0
+langchain-community==0.2.16
+langchain-openai==0.1.25
+langchain-anthropic==0.1.23
+langchain-google-genai==1.0.10
+
+# LangGraph for workflow orchestration
+langgraph==0.2.16
+
+# Web framework
+fastapi==0.115.4
+uvicorn[standard]==0.32.0
+pydantic==2.9.2
+pydantic-settings==2.6.1
+
+# Database
+asyncpg==0.29.0
+supabase==2.8.1
+sqlalchemy[asyncio]==2.0.36
+
+# OAuth and Auth
+google-auth==2.36.0
+google-auth-oauthlib==1.2.1
+google-api-python-client==2.151.0
+
+# API integrations
+aiohttp==3.10.11
+requests==2.32.3
+python-telegram-bot==21.7
+
+# Notion SDK
+notion-client==2.2.1
+
+# Environment management
+python-dotenv==1.0.1
+
+# Testing
+pytest==8.3.3
+pytest-asyncio==0.24.0
+pytest-mock==3.14.0
+
+# Utilities
+tenacity>=8.1.0,<9.0.0
+python-multipart==0.0.12
+Pillow==10.4.0

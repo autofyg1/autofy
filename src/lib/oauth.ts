@@ -47,7 +47,7 @@ export const getConfigRedirectUri = (config: OAuthConfig): string => {
 // OAuth configurations for different services
 export const oauthConfigs: Record<string, OAuthConfig> = {
   gmail: {
-    clientId: import.meta.env.VITE_GOOGLE_CLIENT_ID || '',
+    clientId: import.meta.env.VITE_GMAIL_CLIENT_ID || import.meta.env.VITE_GOOGLE_CLIENT_ID || '',
     redirectUri: () => getRedirectUri('gmail'),
     scopes: [
       'https://www.googleapis.com/auth/gmail.readonly',
@@ -67,12 +67,86 @@ export const oauthConfigs: Record<string, OAuthConfig> = {
   }
 };
 
+// Validate OAuth configuration for a service
+export const validateOAuthConfig = (service: string): boolean => {
+  const config = oauthConfigs[service];
+  if (!config) {
+    console.error(`❌ OAuth: No configuration found for service: ${service}`);
+    return false;
+  }
+  
+  if (!config.clientId || config.clientId.trim() === '') {
+    console.error(`❌ OAuth: Missing client_id for ${service}`);
+    console.error(`❌ OAuth: Expected environment variable: VITE_${service.toUpperCase()}_CLIENT_ID`);
+    console.error(`❌ OAuth: Current value:`, config.clientId);
+    return false;
+  }
+  
+  console.log(`✅ OAuth: Configuration valid for ${service}`, {
+    hasClientId: !!config.clientId,
+    clientIdLength: config.clientId.length
+  });
+  
+  return true;
+};
+
+// Preserve authentication before OAuth redirect
+export const preserveAuthForOAuth = () => {
+  console.log('💾 OAuth: Preserving authentication for OAuth flow...');
+  
+  const authToken = sessionStorage.getItem('auth-token');
+  const refreshToken = sessionStorage.getItem('refresh-token');
+  
+  if (authToken && refreshToken) {
+    // Get current user info if available
+    const supabaseAuthKey = Object.keys(localStorage).find(key => key.includes('supabase'));
+    let user = null;
+    
+    if (supabaseAuthKey) {
+      try {
+        const authData = JSON.parse(localStorage.getItem(supabaseAuthKey) || '{}');
+        user = authData?.user || authData?.session?.user || authData?.data?.session?.user;
+      } catch (err) {
+        console.warn('⚠️ OAuth: Failed to extract user from localStorage:', err);
+      }
+    }
+    
+    const preservedData = {
+      accessToken: authToken,
+      refreshToken: refreshToken,
+      expiresAt: Math.floor(Date.now() / 1000) + (60 * 60), // Default 1 hour expiry
+      user: user,
+      timestamp: Date.now()
+    };
+    
+    sessionStorage.setItem('oauth-preserved-auth', JSON.stringify(preservedData));
+    sessionStorage.setItem('oauth-in-progress', 'true');
+    
+    console.log('✅ OAuth: Authentication preserved for OAuth flow', {
+      hasToken: !!authToken,
+      hasUser: !!user
+    });
+  } else {
+    console.warn('⚠️ OAuth: No authentication tokens found to preserve');
+  }
+};
+
 // Generate OAuth authorization URL
 export const generateAuthUrl = (service: string): string => {
+  console.log(`🔗 OAuth: Generating auth URL for ${service}`);
+  
+  // Validate configuration first
+  if (!validateOAuthConfig(service)) {
+    throw new Error(`Invalid OAuth configuration for service: ${service}. Please check your environment variables.`);
+  }
+  
   const config = oauthConfigs[service];
   if (!config) {
     throw new Error(`OAuth configuration not found for service: ${service}`);
   }
+
+  // Preserve current authentication before redirecting
+  preserveAuthForOAuth();
 
   const params = new URLSearchParams({
     client_id: config.clientId,
@@ -91,7 +165,9 @@ export const generateAuthUrl = (service: string): string => {
     params.set('owner', 'user');
   }
 
-  return `${config.authUrl}?${params.toString()}`;
+  const authUrl = `${config.authUrl}?${params.toString()}`;
+  console.log(`✅ OAuth: Generated auth URL for ${service}:`, authUrl);
+  return authUrl;
 };
 
 // Generate and store state parameter for CSRF protection
@@ -209,3 +285,28 @@ export const isTokenExpired = (expiresAt: string): boolean => {
 export const calculateExpiresAt = (expiresIn: number): string => {
   return new Date(Date.now() + (expiresIn * 1000)).toISOString();
 };
+
+// Debug: Log OAuth configuration on module load
+if (typeof window !== 'undefined') {
+  console.log('=== OAUTH.TS MODULE LOADED ===');
+  console.log('Environment variables:');
+  console.log('- VITE_GOOGLE_CLIENT_ID:', import.meta.env.VITE_GOOGLE_CLIENT_ID ? 'SET (' + import.meta.env.VITE_GOOGLE_CLIENT_ID.length + ' chars)' : 'MISSING');
+  console.log('- VITE_NOTION_CLIENT_ID:', import.meta.env.VITE_NOTION_CLIENT_ID ? 'SET (' + import.meta.env.VITE_NOTION_CLIENT_ID.length + ' chars)' : 'MISSING');
+  console.log('- VITE_FRONTEND_URL:', import.meta.env.VITE_FRONTEND_URL);
+  console.log('Current window.location.origin:', window.location.origin);
+  console.log('OAuth configs available:', Object.keys(oauthConfigs));
+  
+  // Test each config
+  Object.keys(oauthConfigs).forEach(service => {
+    console.log(`${service} config:`, {
+      hasClientId: !!oauthConfigs[service].clientId,
+      clientIdLength: oauthConfigs[service].clientId?.length || 0,
+      redirectUri: typeof oauthConfigs[service].redirectUri === 'function' 
+        ? oauthConfigs[service].redirectUri() 
+        : oauthConfigs[service].redirectUri,
+      valid: validateOAuthConfig(service)
+    });
+  });
+  
+  console.log('=== END OAUTH.TS MODULE LOAD ===');
+}
