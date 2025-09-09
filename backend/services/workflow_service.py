@@ -424,7 +424,8 @@ class WorkflowService:
                     'result': result,
                     'timestamp': datetime.now(timezone.utc).isoformat()
                 })
-                updates['step_results'] = json.dumps(current_results)
+                # Don't JSON encode here - let update_execution handle it
+                updates['step_results'] = current_results
             
             # Update execution
             await self.update_execution(execution_id, updates)

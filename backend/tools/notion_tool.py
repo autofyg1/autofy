@@ -183,7 +183,7 @@ class NotionCreatePageTool(BaseTool):
     
     async def _arun(self, user_id: str, database_id: str, title: str,
                     content: Optional[str] = None, properties: Optional[Dict[str, Any]] = None) -> str:
-        """Create a page in Notion database"""
+        """Create a page in Notion database or as a child of a page"""
         try:
             # Create Notion service
             notion_service = NotionService()
@@ -191,12 +191,38 @@ class NotionCreatePageTool(BaseTool):
             # Get Notion client
             notion = await notion_service.get_notion_client(user_id)
             
-            # Prepare page properties
-            page_properties = notion_service.prepare_page_properties(title, properties)
+            # Check if the target_id is a database or a page
+            is_database = await self._is_target_database(notion, database_id)
+            
+            # Prepare page properties based on parent type
+            if is_database:
+                # For databases, use standard database page properties
+                page_properties = notion_service.prepare_page_properties(title, properties)
+                parent = {"database_id": database_id}
+            else:
+                # For pages, use simpler title format
+                page_properties = {
+                    "title": {
+                        "title": [
+                            {
+                                "text": {
+                                    "content": title
+                                }
+                            }
+                        ]
+                    }
+                }
+                # Add custom properties if provided
+                if properties:
+                    for key, value in properties.items():
+                        if key.lower() != "title":  # Don't override title
+                            page_properties[key] = value
+                
+                parent = {"page_id": database_id}
             
             # Create page payload
             page_data = {
-                "parent": {"database_id": database_id},
+                "parent": parent,
                 "properties": page_properties
             }
             
@@ -215,7 +241,8 @@ class NotionCreatePageTool(BaseTool):
             return json.dumps({
                 "success": True,
                 "page": formatted_response,
-                "database_id": database_id
+                "parent_id": database_id,
+                "is_database_parent": is_database
             })
         
         except (APIResponseError, HTTPResponseError) as e:
@@ -224,6 +251,29 @@ class NotionCreatePageTool(BaseTool):
         
         except Exception as e:
             return json.dumps({"success": False, "error": str(e)})
+
+    async def _is_target_database(self, notion: NotionClient, target_id: str) -> bool:
+        """Check if the given ID is a database or a page"""
+        try:
+            # Try to retrieve as a database first
+            notion.databases.retrieve(database_id=target_id)
+            return True
+        except (APIResponseError, HTTPResponseError) as e:
+            # If it fails, it might be a page ID
+            if "Could not find database" in str(e) or "database" in str(e).lower():
+                try:
+                    # Try to retrieve as a page
+                    page = notion.pages.retrieve(page_id=target_id)
+                    # If successful, it's a page
+                    return False
+                except (APIResponseError, HTTPResponseError):
+                    # If both fail, re-raise the original error
+                    raise e
+            else:
+                raise e
+        except Exception as e:
+            # For any other error, assume it's an invalid ID
+            raise ValueError(f"Invalid Notion ID: {target_id}. Error: {str(e)}")
 
 
 class NotionQueryDatabaseTool(BaseTool):
@@ -391,22 +441,42 @@ class NotionWorkflowTool:
 
             client = NotionClient(auth=access_token)
             
-            database_id = config.get('database_id')
+            target_id = config.get('database_id')
             title = self._resolve_template(config.get('title_template', ''), context)
             content = self._resolve_template(config.get('content_template', ''), context)
 
-            # Create page properties
-            properties = {
-                "Name": {
-                    "title": [
-                        {
-                            "text": {
-                                "content": title
+            # Check if the target_id is a database or a page
+            is_database = await self._is_database(client, target_id)
+            
+            # Create page properties based on the parent type
+            if is_database:
+                # For databases, use properties format
+                properties = {
+                    "Name": {
+                        "title": [
+                            {
+                                "text": {
+                                    "content": title
+                                }
                             }
-                        }
-                    ]
+                        ]
+                    }
                 }
-            }
+                parent = {"database_id": target_id}
+            else:
+                # For pages, use simpler title format and page_id parent
+                properties = {
+                    "title": {
+                        "title": [
+                            {
+                                "text": {
+                                    "content": title
+                                }
+                            }
+                        ]
+                    }
+                }
+                parent = {"page_id": target_id}
             
             # Add content if provided
             children = []
@@ -430,9 +500,9 @@ class NotionWorkflowTool:
                             }
                         })
             
-            # Create the page - don't pass children if empty
+            # Create the page data
             page_data = {
-                "parent": {"database_id": database_id},
+                "parent": parent,
                 "properties": properties
             }
             
@@ -459,6 +529,29 @@ class NotionWorkflowTool:
             if self.logger:
                 self.logger.error(f"Error creating Notion page: {e}")
             return {'success': False, 'error': str(e)}
+
+    async def _is_database(self, client: NotionClient, target_id: str) -> bool:
+        """Check if the given ID is a database or a page"""
+        try:
+            # Try to retrieve as a database first
+            client.databases.retrieve(database_id=target_id)
+            return True
+        except (APIResponseError, HTTPResponseError) as e:
+            # If it fails, it might be a page ID
+            if "Could not find database" in str(e) or "database" in str(e).lower():
+                try:
+                    # Try to retrieve as a page
+                    page = client.pages.retrieve(page_id=target_id)
+                    # If successful, it's a page
+                    return False
+                except (APIResponseError, HTTPResponseError):
+                    # If both fail, re-raise the original error
+                    raise e
+            else:
+                raise e
+        except Exception as e:
+            # For any other error, assume it's an invalid ID
+            raise ValueError(f"Invalid Notion ID: {target_id}. Error: {str(e)}")
 
     def _resolve_template(self, template: str, context: Dict[str, Any]) -> str:
         """Resolve template placeholders with context data"""
