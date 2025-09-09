@@ -22,6 +22,8 @@ python -m venv backend/venv
 
 # Activate virtual environment (Windows)
 backend/venv/Scripts/activate
+source venv/Scripts/activate
+
 
 # Activate virtual environment (macOS/Linux)
 source backend/venv/bin/activate

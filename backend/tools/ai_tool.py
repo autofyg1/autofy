@@ -23,8 +23,8 @@ class AIProcessInput(BaseModel):
     user_id: str = Field(description="User ID for authentication")
     content: str = Field(description="Content to process with AI")
     prompt: str = Field(description="AI prompt/instruction for processing")
-    provider: str = Field(default="openai", description="LLM provider: openai, anthropic, gemini, openrouter")
-    model: str = Field(default="gpt-3.5-turbo", description="Specific model to use")
+    provider: str = Field(default="gemini", description="LLM provider: gemini, openrouter")
+    model: str = Field(default="gemini-2.0-flash", description="Specific model to use")
     temperature: float = Field(default=0.7, description="Temperature for response randomness (0.0-2.0)")
     max_tokens: int = Field(default=1000, description="Maximum tokens to generate")
     system_prompt: Optional[str] = Field(default=None, description="System prompt for context")
@@ -322,8 +322,8 @@ class AIModelListTool(BaseTool):
                     "embedding": []
                 },
                 "gemini": {
-                    "chat": ["gemini-pro", "gemini-pro-vision"],
-                    "embedding": ["models/embedding-001"]
+                    "chat": ["gemini-2.0-flash"],
+                    "embedding": ["models/text-embedding-004"]
                 },
                 "openrouter": {
                     "chat": [
@@ -376,3 +376,87 @@ ai_model_list_tool = AIModelListTool()
 
 # Export all AI tools
 ai_tools = [ai_process_tool, ai_embedding_tool, ai_model_list_tool]
+
+
+# Additional workflow execution methods
+class AIWorkflowTool:
+    """AI tool for workflow execution (non-LangChain)"""
+    
+    def __init__(self, supabase=None):
+        self.supabase = supabase  # Not used by AI tool, but for consistency
+        self.logger = None
+        self.service = AIService()
+        try:
+            import logging
+            self.logger = logging.getLogger(__name__)
+        except ImportError:
+            pass
+    
+    async def process_text(self, prompt: str, model: str = "gemini-2.0-flash", api_key: str = None, 
+                          content: str = "", temperature: float = 0.7, max_tokens: int = 1000) -> Dict[str, Any]:
+        """Process text with AI for workflows"""
+        try:
+            # Determine provider from model name
+            provider = "gemini"  # Default to free Gemini
+            if "claude" in model.lower():
+                provider = "anthropic"
+            elif "gemini" in model.lower() or "bard" in model.lower():
+                provider = "gemini"
+            elif "llama" in model.lower() or "mistral" in model.lower() or "phi-" in model.lower() or "openchat" in model.lower() or "zephyr" in model.lower():
+                provider = "openrouter"
+            elif "gpt" in model.lower():
+                provider = "openai"
+            
+            # Get LLM instance
+            llm = self.service.get_llm(provider, model, temperature, max_tokens)
+            
+            # Prepare messages
+            messages = []
+            
+            if content:
+                # If content is provided, use it as context
+                messages.append(SystemMessage(content=f"Process the following content: {content}"))
+                messages.append(HumanMessage(content=prompt))
+            else:
+                messages.append(HumanMessage(content=prompt))
+            
+            # Get response
+            response = await llm.ainvoke(messages)
+            
+            result = {
+                'success': True,
+                'response': response.content,
+                'model': model,
+                'provider': provider,
+                'tokens_used': getattr(response, 'usage', {}).get('total_tokens', 0)
+            }
+            
+            if self.logger:
+                self.logger.info(f"AI processing completed: {model} - {len(response.content)} chars")
+            
+            return result
+            
+        except Exception as e:
+            if self.logger:
+                self.logger.error(f"Error processing text with AI: {e}")
+            return {'success': False, 'error': str(e)}
+    
+    async def summarize_text(self, text: str, model: str = "gemini-2.0-flash", api_key: str = None) -> Dict[str, Any]:
+        """Summarize text for workflows"""
+        prompt = f"Please provide a clear and concise summary of the following text:\n\n{text}"
+        return await self.process_text(prompt, model, api_key)
+    
+    async def extract_keywords(self, text: str, model: str = "gemini-2.0-flash", api_key: str = None) -> Dict[str, Any]:
+        """Extract keywords from text for workflows"""
+        prompt = f"Extract the key words and phrases from the following text. Return them as a comma-separated list:\n\n{text}"
+        return await self.process_text(prompt, model, api_key)
+    
+    async def classify_text(self, text: str, categories: List[str], model: str = "gemini-2.0-flash", api_key: str = None) -> Dict[str, Any]:
+        """Classify text into categories for workflows"""
+        categories_str = ", ".join(categories)
+        prompt = f"Classify the following text into one of these categories: {categories_str}\n\nText: {text}\n\nReturn only the category name."
+        return await self.process_text(prompt, model, api_key)
+
+
+# Workflow tool instance
+ai_workflow_tool = AIWorkflowTool()

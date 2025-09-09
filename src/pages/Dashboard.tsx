@@ -163,6 +163,11 @@ const WorkflowCard = React.memo(({ zap, onToggle, onDelete }: {
 }) => {
   const steps = zap.steps || [];
   
+  // Debug logging to see what data we're getting
+  console.log('ZapCard Debug - Full zap object:', zap);
+  console.log('ZapCard Debug - Steps array:', steps);
+  console.log('ZapCard Debug - Steps length:', steps.length);
+  
   const formatLastRun = useCallback((lastRunAt?: string) => {
     if (!lastRunAt) return 'Never';
     

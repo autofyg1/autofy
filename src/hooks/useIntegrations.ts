@@ -9,7 +9,7 @@ export const useIntegrations = () => {
   const [integrations, setIntegrations] = useState<Integration[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const { user, session, loading: authLoading } = useAuth();
+  const { user, session } = useAuth();
   const telegram = useTelegram();
 
   const fetchIntegrations = async () => {
@@ -53,7 +53,29 @@ export const useIntegrations = () => {
   };
 
   const connectIntegration = async (serviceName: string, credentials: Record<string, any>) => {
-    if (!user) return { error: 'User not authenticated' };
+    console.log('🔄 connectIntegration: Checking authentication...', {
+      hasUser: !!user,
+      hasSession: !!session,
+      userInfo: user ? { id: user.id, email: user.email } : null
+    });
+
+    // Check multiple auth sources - during OAuth, React context might not be updated yet
+    const hasReactAuth = user && session;
+    const hasStorageAuth = sessionStorage.getItem('sb-localhost-auth-token') || sessionStorage.getItem('auth-token');
+    const hasOAuthAuth = sessionStorage.getItem('oauth-preserved-auth');
+
+    if (!hasReactAuth && !hasStorageAuth && !hasOAuthAuth) {
+      console.error('❌ connectIntegration: Authentication failed - no auth found in any source');
+      return { error: 'User not authenticated' };
+    }
+
+    if (!hasReactAuth) {
+      console.log('⚠️ connectIntegration: React context not ready, but have auth tokens - proceeding');
+    } else {
+      console.log('✅ connectIntegration: React authentication confirmed');
+    }
+
+    console.log('✅ connectIntegration: Authentication successful, proceeding with integration creation...');
 
     try {
       const integration = await apiClient.createIntegration({
@@ -66,7 +88,7 @@ export const useIntegrations = () => {
       // Transform and add to local state
       const transformedIntegration: Integration = {
         id: integration.id,
-        user_id: user.id,
+        user_id: user?.id || 'temp-user-id', // Fallback for OAuth flow
         service_name: integration.service || integration.service_name,
         display_name: integration.name || integration.display_name,
         credentials: {}, // Don't expose credentials
@@ -177,8 +199,8 @@ export const useIntegrations = () => {
     } catch (error) {
       console.error('=== OAUTH INITIATION ERROR ===');
       console.error('Error type:', error?.constructor?.name);
-      console.error('Error message:', error?.message);
-      console.error('Stack:', error?.stack);
+      console.error('Error message:', (error as Error)?.message);
+      console.error('Stack:', (error as Error)?.stack);
       return { error: error instanceof Error ? error.message : 'Failed to start OAuth flow' };
     }
   };

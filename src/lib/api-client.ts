@@ -263,7 +263,21 @@ class ApiClient {
   }
 
   async getWorkflow(workflowId: string): Promise<any> {
-    return this.request(`/api/workflows/${workflowId}`);
+    console.log(`🔍 API Client: Fetching workflow ${workflowId}`);
+    const result = await this.request(`/api/workflows/${workflowId}`) as any;
+    console.log(`📥 API Client: Received workflow data:`, {
+      id: result?.id,
+      name: result?.name,
+      stepsCount: result?.steps?.length || 0,
+      steps: result?.steps?.map((step: any) => ({
+        id: step.id,
+        service_name: step.service_name,
+        action_name: step.action_name,
+        step_type: step.step_type,
+        step_order: step.step_order
+      })) || []
+    });
+    return result;
   }
 
   async createWorkflow(workflow: {
@@ -272,10 +286,27 @@ class ApiClient {
     trigger_type?: string;
     trigger_config?: Record<string, any>;
     tags?: string[];
+    is_active?: boolean;
+    steps?: Array<{
+      step_order: number;
+      step_type: string;
+      service_name: string;
+      action_name: string;
+      configuration: Record<string, any>;
+      conditions?: Record<string, any>;
+      error_handling?: Record<string, any>;
+    }>;
   }): Promise<any> {
     return this.request('/api/workflows', {
       method: 'POST',
       body: JSON.stringify(workflow),
+    });
+  }
+
+  async updateWorkflowStatus(workflowId: string, isActive: boolean): Promise<any> {
+    return this.request(`/api/workflows/${workflowId}/status`, {
+      method: 'PATCH',
+      body: JSON.stringify({ is_active: isActive }),
     });
   }
 

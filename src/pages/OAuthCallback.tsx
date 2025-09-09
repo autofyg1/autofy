@@ -2,7 +2,6 @@ import React, { useEffect, useState, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { useIntegrations } from '../hooks/useIntegrations';
-import { supabase } from '../lib/supabase';
 import { oauthConfigs, getConfigRedirectUri } from '../lib/oauth';
 import { apiClient } from '../lib/api-client';
 import { Loader2, CheckCircle, AlertCircle } from 'lucide-react';
@@ -10,7 +9,7 @@ import { Loader2, CheckCircle, AlertCircle } from 'lucide-react';
 const OAuthCallback: React.FC = () => {
   const { service } = useParams<{ service: string }>();
   const navigate = useNavigate();
-  const { user } = useAuth();
+  const { user, session } = useAuth(); // Get both user and session
   const { connectIntegration } = useIntegrations();
   
   const [status, setStatus] = useState<'loading' | 'success' | 'error'>('loading');
@@ -98,44 +97,73 @@ const OAuthCallback: React.FC = () => {
         }
 
         // Check authentication status with enhanced handling
-        if (!user) {
-          console.warn('User not authenticated in React context');
-          
-          // Check if we have preserved auth data
-          const oauthPreservedAuth = sessionStorage.getItem('oauth-preserved-auth');
-          if (oauthPreservedAuth) {
-            console.log('🔄 OAuth: User context missing but preserved auth found, waiting for restoration...');
-            // Give the auth context more time to process preserved auth
-            let attempts = 0;
-            const maxAttempts = 10; // Wait up to 5 seconds (10 attempts * 500ms)
-            
-            while (attempts < maxAttempts && !user) {
-              await new Promise(resolve => setTimeout(resolve, 500));
-              attempts++;
-              console.log(`🔄 OAuth: Waiting for auth restoration, attempt ${attempts}/${maxAttempts}`);
-              
-              // Check if user context has been updated
-              if (user) {
-                console.log('✅ OAuth: User context restored successfully');
-                break;
-              }
-            }
-            
-            if (!user) {
-              console.warn('⚠️ OAuth: Auth restoration timed out, but continuing with OAuth flow');
-              // Don't throw error - continue with OAuth process anyway
-              // The backend will validate the session
-            }
-          } else {
-            console.error('❌ OAuth: No user authentication and no preserved auth');
-            // Redirect to login instead of throwing error
-            setStatus('error');
-            setMessage('Please log in first to connect integrations');
-            setTimeout(() => {
-              navigate('/login');
-            }, 2000);
-            return;
+        console.log('🔐 OAuth: Checking authentication status:', {
+          hasUser: !!user,
+          hasSession: !!session,
+          userId: user?.id,
+          sessionToken: !!session?.access_token
+        });
+
+        // Function to check authentication from multiple sources
+        const checkAuthFromAllSources = () => {
+          // Check React context
+          if (user && session) {
+            console.log('✅ Auth confirmed via React context');
+            return { user, session };
           }
+
+          // Check sessionStorage directly
+          const authToken = sessionStorage.getItem('sb-localhost-auth-token') || sessionStorage.getItem('auth-token');
+          const oauthPreservedAuth = sessionStorage.getItem('oauth-preserved-auth');
+          
+          if (authToken || oauthPreservedAuth) {
+            console.log('✅ Auth confirmed via sessionStorage', {
+              hasAuthToken: !!authToken,
+              hasOauthPreservedAuth: !!oauthPreservedAuth
+            });
+            return { hasAuth: true };
+          }
+
+          return null;
+        };
+
+        const authStatus = checkAuthFromAllSources();
+
+        if (!authStatus) {
+          console.error('❌ OAuth: No authentication found in any source');
+          setStatus('error');
+          setMessage('Please log in first to connect integrations');
+          setTimeout(() => {
+            navigate('/login');
+          }, 2000);
+          return;
+        }
+
+        // If we have auth in sessionStorage but not in React context, wait a bit more
+        if (!user || !session) {
+          console.warn('🔄 OAuth: Auth found in storage but not in React context, waiting...');
+          
+          // Give the auth context more time to process preserved auth
+          let attempts = 0;
+          const maxAttempts = 20;
+          
+          while (attempts < maxAttempts && (!user || !session)) {
+            await new Promise(resolve => setTimeout(resolve, 500));
+            attempts++;
+            console.log(`🔄 OAuth: Waiting for React context update, attempt ${attempts}/${maxAttempts}`, {
+              hasUser: !!user,
+              hasSession: !!session
+            });
+          }
+          
+          // If still no React context, but we have auth tokens, proceed anyway
+          if (!user || !session) {
+            console.warn('⚠️ OAuth: React context not updated, but have auth tokens - proceeding');
+          } else {
+            console.log('✅ OAuth: React context updated successfully');
+          }
+        } else {
+          console.log('✅ OAuth: User and session are ready');
         }
 
         setMessage('Exchanging authorization code for tokens...');

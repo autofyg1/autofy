@@ -51,7 +51,7 @@ export const useZaps = () => {
         is_active: workflow.status === 'active',
         total_runs: workflow.total_executions || 0,
         last_run_at: workflow.last_executed_at,
-        steps: [], // Will be loaded separately if needed
+        steps: workflow.steps || [], // Use actual steps from API response
       }));
       
       setZaps(transformedZaps);
@@ -79,12 +79,24 @@ export const useZaps = () => {
 
   const createNewZap = async (config: ZapConfiguration) => {
     try {
+      // Transform steps to backend format
+      const backendSteps = config.steps?.map((step, index) => ({
+        step_order: index + 1,
+        step_type: step.step_type,
+        service_name: step.service_name,
+        action_name: step.event_type,
+        configuration: step.configuration,
+        conditions: {},
+        error_handling: {}
+      })) || [];
+
       const workflow = await apiClient.createWorkflow({
         name: config.name,
         description: config.description,
         trigger_type: config.trigger_type || 'manual',
         trigger_config: config.trigger_config || {},
         tags: config.tags || [],
+        steps: backendSteps,
       });
       
       // Transform to zap format
@@ -93,7 +105,7 @@ export const useZaps = () => {
         is_active: workflow.status === 'active',
         total_runs: workflow.total_executions || 0,
         last_run_at: workflow.last_executed_at,
-        steps: [],
+        steps: workflow.steps || [],
       };
       
       setZaps(prev => [transformedZap, ...prev]);
@@ -110,12 +122,13 @@ export const useZaps = () => {
       const zap = zaps.find(z => z.id === zapId);
       if (!zap) return;
 
-      // Note: Backend doesn't have a toggle endpoint, so we simulate it
-      // In a real implementation, you might want to add this endpoint to the backend
-      // For now, just update the local state
+      // Call backend to update workflow status
+      const newStatus = !zap.is_active;
+      await apiClient.updateWorkflowStatus(zapId, newStatus);
       
+      // Update local state
       setZaps(prev => prev.map(z => 
-        z.id === zapId ? { ...z, is_active: !z.is_active, status: !z.is_active ? 'active' : 'paused' } : z
+        z.id === zapId ? { ...z, is_active: newStatus, status: newStatus ? 'active' : 'paused' } : z
       ));
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to update workflow status');

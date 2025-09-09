@@ -28,9 +28,8 @@ class WorkflowService:
             workflows = []
             
             for workflow_data in result.data:
-                # Parse tags JSON if it's a string
-                if isinstance(workflow_data.get('tags'), str):
-                    workflow_data['tags'] = json.loads(workflow_data['tags'])
+                # Parse trigger_config JSON if it's a string
+                # tags is already an array from PostgreSQL, no need to parse
                 if isinstance(workflow_data.get('trigger_config'), str):
                     workflow_data['trigger_config'] = json.loads(workflow_data['trigger_config'])
                 
@@ -50,8 +49,7 @@ class WorkflowService:
             if result.data:
                 workflow_data = result.data
                 # Parse JSON fields
-                if isinstance(workflow_data.get('tags'), str):
-                    workflow_data['tags'] = json.loads(workflow_data['tags'])
+                # tags is already an array from PostgreSQL, no need to parse
                 if isinstance(workflow_data.get('trigger_config'), str):
                     workflow_data['trigger_config'] = json.loads(workflow_data['trigger_config'])
                 
@@ -64,7 +62,7 @@ class WorkflowService:
     
     async def create_workflow(self, user_id: str, name: str, description: str = None, 
                             trigger_type: str = 'manual', trigger_config: Dict[str, Any] = None,
-                            tags: List[str] = None, created_from_chat: bool = False,
+                            tags: List[str] = None, is_active: bool = False, created_from_chat: bool = False,
                             chat_session_id: str = None) -> Workflow:
         """Create a new workflow"""
         now = datetime.now(timezone.utc)
@@ -78,7 +76,8 @@ class WorkflowService:
             'status': 'draft',
             'trigger_type': trigger_type,
             'trigger_config': json.dumps(trigger_config or {}),
-            'tags': json.dumps(tags or []),
+            'tags': tags or [],  # PostgreSQL will handle the array conversion
+            'is_active': is_active,
             'total_executions': 0,
             'successful_executions': 0,
             'failed_executions': 0,
@@ -94,7 +93,7 @@ class WorkflowService:
             created_workflow = result.data[0]
             
             # Convert JSON strings back to proper types
-            created_workflow['tags'] = json.loads(created_workflow['tags'])
+            # tags is already an array from PostgreSQL, no need to parse
             created_workflow['trigger_config'] = json.loads(created_workflow['trigger_config'])
             
             return Workflow(**created_workflow)
@@ -110,16 +109,14 @@ class WorkflowService:
         # Convert complex fields to JSON strings for storage
         if 'trigger_config' in updates:
             updates['trigger_config'] = json.dumps(updates['trigger_config'])
-        if 'tags' in updates:
-            updates['tags'] = json.dumps(updates['tags'])
+        # tags is handled as a PostgreSQL array, no need to convert to JSON
         
         try:
             result = self.supabase.table('workflows').update(updates).eq('id', workflow_id).eq('user_id', user_id).execute()
             updated_workflow = result.data[0]
             
             # Convert JSON strings back to proper types
-            if isinstance(updated_workflow.get('tags'), str):
-                updated_workflow['tags'] = json.loads(updated_workflow['tags'])
+            # tags is already an array from PostgreSQL, no need to parse
             if isinstance(updated_workflow.get('trigger_config'), str):
                 updated_workflow['trigger_config'] = json.loads(updated_workflow['trigger_config'])
             
@@ -166,6 +163,23 @@ class WorkflowService:
             print(f"Error fetching workflow steps for {workflow_id}: {e}")
             return []
     
+    async def update_workflow_status(self, workflow_id: str, is_active: bool) -> bool:
+        """Update workflow active status"""
+        try:
+            # Update both is_active and status fields for consistency
+            status_value = 'active' if is_active else 'paused'
+            
+            result = self.supabase.table('workflows').update({
+                'is_active': is_active,
+                'status': status_value,
+                'updated_at': datetime.now(timezone.utc).isoformat()
+            }).eq('id', workflow_id).execute()
+            
+            return len(result.data) > 0
+        except Exception as e:
+            print(f"Error updating workflow status: {e}")
+            return False
+
     async def create_workflow_step(self, workflow_id: str, step_order: int, step_type: str,
                                  service_name: str, action_name: str, configuration: Dict[str, Any],
                                  conditions: Dict[str, Any] = None, error_handling: Dict[str, Any] = None) -> WorkflowStep:
@@ -202,23 +216,61 @@ class WorkflowService:
         except Exception as e:
             print(f"Error creating workflow step: {e}")
             raise
+
+    async def update_workflow_step(self, step_id: str, updates: Dict[str, Any]) -> Optional[WorkflowStep]:
+        """Update a workflow step"""
+        updates['updated_at'] = datetime.now(timezone.utc).isoformat()
+        
+        # Convert complex fields to JSON strings for storage
+        if 'configuration' in updates:
+            updates['configuration'] = json.dumps(updates['configuration'])
+        if 'conditions' in updates:
+            updates['conditions'] = json.dumps(updates['conditions'])
+        if 'error_handling' in updates:
+            updates['error_handling'] = json.dumps(updates['error_handling'])
+        
+        try:
+            result = self.supabase.table('workflow_steps').update(updates).eq('id', step_id).execute()
+            
+            if result.data:
+                updated_step = result.data[0]
+                
+                # Convert JSON strings back to proper types
+                if isinstance(updated_step.get('configuration'), str):
+                    updated_step['configuration'] = json.loads(updated_step['configuration'])
+                if isinstance(updated_step.get('conditions'), str):
+                    updated_step['conditions'] = json.loads(updated_step['conditions'])
+                if isinstance(updated_step.get('error_handling'), str):
+                    updated_step['error_handling'] = json.loads(updated_step['error_handling'])
+                
+                return WorkflowStep(**updated_step)
+            return None
+            
+        except Exception as e:
+            print(f"Error updating workflow step {step_id}: {e}")
+            raise
     
     async def update_workflow_statistics(self, workflow_id: str, execution_status: str) -> None:
         """Update workflow execution statistics"""
         try:
-            workflow = await self.get_workflow(workflow_id, "")  # We'll need user_id for proper RLS
-            if not workflow:
+            # Get current workflow stats directly without user_id filter to avoid RLS issues
+            result = self.supabase.table('workflows').select('total_executions, successful_executions, failed_executions').eq('id', workflow_id).single().execute()
+            
+            if not result.data:
+                print(f"Workflow {workflow_id} not found for statistics update")
                 return
             
+            current_stats = result.data
+            
             updates = {
-                'total_executions': workflow.total_executions + 1,
+                'total_executions': (current_stats.get('total_executions', 0) or 0) + 1,
                 'last_executed_at': datetime.now(timezone.utc).isoformat()
             }
             
             if execution_status == 'completed':
-                updates['successful_executions'] = workflow.successful_executions + 1
+                updates['successful_executions'] = (current_stats.get('successful_executions', 0) or 0) + 1
             elif execution_status == 'failed':
-                updates['failed_executions'] = workflow.failed_executions + 1
+                updates['failed_executions'] = (current_stats.get('failed_executions', 0) or 0) + 1
             
             self.supabase.table('workflows').update(updates).eq('id', workflow_id).execute()
             
@@ -266,7 +318,7 @@ class WorkflowService:
             print(f"Error creating workflow execution: {e}")
             raise
     
-    async def update_execution(self, execution_id: str, updates: Dict[str, Any]) -> WorkflowExecution:
+    async def update_execution(self, execution_id: str, updates: Dict[str, Any]) -> Optional[WorkflowExecution]:
         """Update workflow execution"""
         # Convert complex fields to JSON strings for storage
         if 'trigger_data' in updates:
@@ -278,6 +330,11 @@ class WorkflowService:
         
         try:
             result = self.supabase.table('workflow_executions').update(updates).eq('id', execution_id).execute()
+            
+            if not result.data:
+                print(f"No execution found with ID {execution_id}")
+                return None
+                
             updated_execution = result.data[0]
             
             # Convert JSON strings back to proper types
@@ -292,7 +349,7 @@ class WorkflowService:
             
         except Exception as e:
             print(f"Error updating workflow execution: {e}")
-            raise
+            return None
     
     async def get_execution(self, execution_id: str) -> Optional[WorkflowExecution]:
         """Get workflow execution by ID"""
@@ -338,3 +395,65 @@ class WorkflowService:
         except Exception as e:
             print(f"Error fetching workflow executions for {workflow_id}: {e}")
             return []
+    
+    async def log_execution_step(self, execution_id: str, step_id: str, status: str, result: Dict[str, Any] = None, error_message: str = None) -> None:
+        """Log the execution step result"""
+        try:
+            # Get current execution to update step counts
+            execution = await self.get_execution(execution_id)
+            if not execution:
+                print(f"Execution {execution_id} not found for step logging")
+                return
+            
+            # Update step counts
+            updates = {}
+            if status == 'completed':
+                updates['completed_steps'] = execution.completed_steps + 1
+            elif status == 'failed':
+                updates['failed_steps'] = execution.failed_steps + 1
+                if error_message:
+                    updates['error_message'] = error_message
+                    updates['error_step_id'] = step_id
+            
+            # Add result to step_results if provided
+            if result:
+                current_results = execution.step_results or []
+                current_results.append({
+                    'step_id': step_id,
+                    'status': status,
+                    'result': result,
+                    'timestamp': datetime.now(timezone.utc).isoformat()
+                })
+                updates['step_results'] = json.dumps(current_results)
+            
+            # Update execution
+            await self.update_execution(execution_id, updates)
+            
+        except Exception as e:
+            print(f"Error logging execution step: {e}")
+    
+    async def update_execution_status(self, execution_id: str, status: str, error_message: str = None) -> None:
+        """Update execution status"""
+        try:
+            updates = {
+                'execution_status': status
+            }
+            
+            if status in ['completed', 'failed']:
+                updates['completed_at'] = datetime.now(timezone.utc).isoformat()
+            
+            if error_message:
+                updates['error_message'] = error_message
+            
+            await self.update_execution(execution_id, updates)
+            
+        except Exception as e:
+            print(f"Error updating execution status: {e}")
+    
+    async def update_workflow_stats(self, workflow_id: str, execution_status: str) -> None:
+        """Update workflow execution statistics"""
+        await self.update_workflow_statistics(workflow_id, execution_status)
+    
+    async def get_executions(self, workflow_id: str, limit: int = 50) -> List[WorkflowExecution]:
+        """Get workflow executions - alias for get_workflow_executions"""
+        return await self.get_workflow_executions(workflow_id, limit)

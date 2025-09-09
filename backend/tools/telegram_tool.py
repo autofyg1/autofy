@@ -287,3 +287,72 @@ telegram_test_connection_tool = TelegramTestConnectionTool()
 
 # Export all Telegram tools
 telegram_tools = [telegram_send_tool, telegram_get_chats_tool, telegram_test_connection_tool]
+
+
+# Additional workflow execution methods
+class TelegramWorkflowTool:
+    """Telegram tool for workflow execution (non-LangChain)"""
+    
+    def __init__(self, supabase=None):
+        self.supabase = supabase  # Not used by Telegram tool, but for consistency
+        self.logger = None
+        self.service = TelegramService()
+        try:
+            import logging
+            self.logger = logging.getLogger(__name__)
+        except ImportError:
+            pass
+    
+    async def send_message(self, bot_token: str, chat_id: str, message: str, parse_mode: str = "HTML") -> Dict[str, Any]:
+        """Send Telegram message for workflows"""
+        try:
+            bot = Bot(token=bot_token)
+            
+            # Send message
+            sent_message = await bot.send_message(
+                chat_id=chat_id,
+                text=message,
+                parse_mode=parse_mode,
+                disable_web_page_preview=True
+            )
+            
+            result = {
+                'success': True,
+                'message_id': sent_message.message_id,
+                'chat_id': sent_message.chat_id,
+                'date': sent_message.date.isoformat(),
+                'text': sent_message.text
+            }
+            
+            if self.logger:
+                self.logger.info(f"Telegram message sent to {chat_id}: {sent_message.message_id}")
+            
+            return result
+            
+        except Exception as e:
+            if self.logger:
+                self.logger.error(f"Error sending Telegram message: {e}")
+            return {'success': False, 'error': str(e)}
+    
+    async def get_bot_info(self, bot_token: str) -> Dict[str, Any]:
+        """Get bot information for workflows"""
+        try:
+            bot = Bot(token=bot_token)
+            bot_info = await bot.get_me()
+            
+            return {
+                'success': True,
+                'bot_id': bot_info.id,
+                'username': bot_info.username,
+                'first_name': bot_info.first_name,
+                'can_join_groups': bot_info.can_join_groups
+            }
+            
+        except Exception as e:
+            if self.logger:
+                self.logger.error(f"Error getting bot info: {e}")
+            return {'success': False, 'error': str(e)}
+
+
+# Workflow tool instance
+telegram_workflow_tool = TelegramWorkflowTool()

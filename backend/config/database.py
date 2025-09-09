@@ -135,6 +135,7 @@ class Workflow(BaseModel):
     trigger_type: str
     trigger_config: dict = {}
     tags: List[str] = []
+    is_active: bool = False
     total_executions: int = 0
     successful_executions: int = 0
     failed_executions: int = 0

@@ -150,14 +150,26 @@ const ZapBuilder: React.FC = () => {
             const builderSteps: Step[] = sortedSteps.map((zapStep, index) => {
               const appInfo = getAppFromServiceName(zapStep.service_name);
               console.log('Processing step:', zapStep.service_name, '-> app:', appInfo.name);
+              
+              // Parse configuration if it's a string
+              let parsedConfig = zapStep.configuration;
+              if (typeof zapStep.configuration === 'string') {
+                try {
+                  parsedConfig = JSON.parse(zapStep.configuration);
+                } catch (e) {
+                  console.error('Failed to parse step configuration:', e);
+                  parsedConfig = {};
+                }
+              }
+              
               return {
                 id: zapStep.id,
                 type: zapStep.step_type,
                 app: appInfo.name,
-                event: zapStep.event_type,
+                event: zapStep.event_type || zapStep.action_name,
                 icon: appInfo.icon,
                 isConfigured: true,
-                configuration: zapStep.configuration
+                configuration: parsedConfig || {}
               };
             });
             setSteps(builderSteps);

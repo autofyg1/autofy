@@ -9,6 +9,7 @@ from langchain.tools import BaseTool
 from langchain.pydantic_v1 import BaseModel, Field
 from notion_client import Client as NotionClient
 from notion_client.errors import APIResponseError, HTTPResponseError
+from supabase import Client
 
 import sys
 import os
@@ -350,3 +351,292 @@ notion_get_database_tool = NotionGetDatabaseTool()
 
 # Export all Notion tools
 notion_tools = [notion_create_page_tool, notion_query_database_tool, notion_get_database_tool]
+
+
+# Additional workflow execution methods
+class NotionWorkflowTool:
+    """Notion tool for workflow execution (non-LangChain)"""
+    
+    def __init__(self, supabase: Client = None):
+        self.supabase = supabase or get_supabase()
+        self.logger = None
+        try:
+            import logging
+            self.logger = logging.getLogger(__name__)
+        except ImportError:
+            pass
+    
+    async def create_workflow_page(self, step_data: Dict[str, Any]) -> Dict[str, Any]:
+        """Create a Notion page for workflows"""
+        try:
+            context = step_data.get('context', {})
+            config = step_data.get('configuration', {})
+            user_id = context.get('user_id')
+
+            if not user_id:
+                return {'success': False, 'error': 'User ID not found in context'}
+
+            # Get user's Notion integration
+            integration_result = self.supabase.table('integrations').select('credentials').eq('user_id', user_id).eq('service_name', 'notion').single().execute()
+            if not integration_result.data:
+                return {'success': False, 'error': f"Notion integration not found for user {user_id}"}
+            
+            credentials = integration_result.data['credentials']
+            if isinstance(credentials, str):
+                credentials = json.loads(credentials)
+            
+            access_token = credentials.get('access_token')
+            if not access_token:
+                return {'success': False, 'error': 'Notion access token not found'}
+
+            client = NotionClient(auth=access_token)
+            
+            database_id = config.get('database_id')
+            title = self._resolve_template(config.get('title_template', ''), context)
+            content = self._resolve_template(config.get('content_template', ''), context)
+
+            # Create page properties
+            properties = {
+                "Name": {
+                    "title": [
+                        {
+                            "text": {
+                                "content": title
+                            }
+                        }
+                    ]
+                }
+            }
+            
+            # Add content if provided
+            children = []
+            if content:
+                # Split content into paragraphs
+                paragraphs = content.split('\n')
+                for para in paragraphs:
+                    if para.strip():
+                        children.append({
+                            "object": "block",
+                            "type": "paragraph",
+                            "paragraph": {
+                                "rich_text": [
+                                    {
+                                        "type": "text",
+                                        "text": {
+                                            "content": para.strip()
+                                        }
+                                    }
+                                ]
+                            }
+                        })
+            
+            # Create the page - don't pass children if empty
+            page_data = {
+                "parent": {"database_id": database_id},
+                "properties": properties
+            }
+            
+            # Only add children if we have content
+            if children:
+                page_data["children"] = children
+                
+            new_page = client.pages.create(**page_data)
+            
+            page_url = new_page.get('url', '')
+            page_id = new_page.get('id', '')
+            
+            if self.logger:
+                self.logger.info(f"Created Notion page: {title} ({page_id})")
+            
+            return {
+                'success': True,
+                'page_id': page_id,
+                'page_url': page_url,
+                'title': title
+            }
+            
+        except Exception as e:
+            if self.logger:
+                self.logger.error(f"Error creating Notion page: {e}")
+            return {'success': False, 'error': str(e)}
+
+    def _resolve_template(self, template: str, context: Dict[str, Any]) -> str:
+        """Resolve template placeholders with context data"""
+        if not template:
+            return ""
+        
+        resolved = template
+        
+        # Replace common placeholders from trigger_data
+        trigger_data = context.get('trigger_data', {})
+        for key, value in trigger_data.items():
+            placeholder = f"{{{{trigger.{key}}}}}"
+            if placeholder in resolved:
+                resolved = resolved.replace(placeholder, str(value))
+
+        # Replace placeholders from previous steps
+        step_outputs = context.get('step_outputs', {})
+        for step_order, output in step_outputs.items():
+            if isinstance(output, dict):
+                for key, value in output.items():
+                    placeholder = f"{{{{steps.{step_order}.{key}}}}}"
+                    if placeholder in resolved:
+                        resolved = resolved.replace(placeholder, str(value))
+        
+        return resolved
+    
+    async def _update_page_direct(self, access_token: str, page_id: str, title: str = None, properties: Dict = None) -> Dict[str, Any]:
+        """Update a Notion page for workflows (direct method)"""
+        try:
+            client = NotionClient(auth=access_token)
+            
+            update_data = {}
+            
+            if title:
+                update_data["properties"] = {
+                    "Name": {
+                        "title": [
+                            {
+                                "text": {
+                                    "content": title
+                                }
+                            }
+                        ]
+                    }
+                }
+            
+            if properties:
+                if "properties" not in update_data:
+                    update_data["properties"] = {}
+                update_data["properties"].update(properties)
+            
+            # Update the page
+            updated_page = client.pages.update(page_id=page_id, **update_data)
+            
+            if self.logger:
+                self.logger.info(f"Updated Notion page: {page_id}")
+            
+            return {
+                'success': True,
+                'page_id': updated_page.get('id'),
+                'page_url': updated_page.get('url', ''),
+                'last_edited_time': updated_page.get('last_edited_time')
+            }
+            
+        except Exception as e:
+            if self.logger:
+                self.logger.error(f"Error updating Notion page: {e}")
+            return {'success': False, 'error': str(e)}
+
+
+    async def create_page(self, step_data: Dict[str, Any]) -> Dict[str, Any]:
+        """Create a Notion page - alias for create_workflow_page"""
+        return await self.create_workflow_page(step_data)
+    
+    async def query_database(self, step_data: Dict[str, Any]) -> Dict[str, Any]:
+        """Query Notion database for workflows"""
+        try:
+            user_id = step_data['user_id']
+            config = step_data.get('configuration', {})
+            
+            # Get user integration
+            integration = await self._get_user_integration(user_id, 'notion')
+            if not integration:
+                raise ValueError("Notion integration not found for user")
+            
+            # Use NotionService for proper credential handling
+            notion_service = NotionService()
+            notion = await notion_service.get_notion_client(user_id)
+            
+            database_id = config.get('database_id')
+            filter_query = config.get('filter', {})
+            sorts = config.get('sorts', [])
+            page_size = config.get('page_size', 10)
+            
+            # Build query parameters
+            query_params = {"page_size": min(page_size, 100)}
+            
+            if filter_query:
+                query_params["filter"] = filter_query
+            
+            if sorts:
+                query_params["sorts"] = sorts
+            
+            # Query the database
+            response = notion.databases.query(database_id=database_id, **query_params)
+            
+            # Format results
+            results = []
+            for page in response.get("results", []):
+                formatted_page = notion_service.format_notion_response(page)
+                results.append(formatted_page)
+            
+            return {
+                'success': True,
+                'results': results,
+                'count': len(results),
+                'has_more': response.get("has_more", False),
+                'database_id': database_id
+            }
+            
+        except Exception as e:
+            if self.logger:
+                self.logger.error(f"Error in query_database: {e}")
+            return {
+                'success': False,
+                'error': str(e),
+                'results': []
+            }
+    
+    async def update_page_workflow(self, step_data: Dict[str, Any]) -> Dict[str, Any]:
+        """Update Notion page for workflow execution"""
+        try:
+            user_id = step_data['user_id']
+            config = step_data.get('configuration', {})
+            context = step_data.get('context', {})
+            
+            # Get user integration
+            integration = await self._get_user_integration(user_id, 'notion')
+            if not integration:
+                raise ValueError("Notion integration not found for user")
+            
+            credentials = integration['credentials']
+            if isinstance(credentials, str):
+                credentials = json.loads(credentials)
+            
+            access_token = credentials.get('access_token')
+            if not access_token:
+                raise ValueError("Notion access token not found")
+            
+            page_id = config.get('page_id')
+            title = self._resolve_template(config.get('title', ''), context)
+            properties = config.get('properties', {})
+            
+            # Use the existing direct update method
+            return await self._update_page_direct(access_token, page_id, title, properties)
+            
+        except Exception as e:
+            if self.logger:
+                self.logger.error(f"Error in update_page workflow: {e}")
+            return {
+                'success': False,
+                'error': str(e)
+            }
+    
+    async def update_page(self, step_data: Dict[str, Any]) -> Dict[str, Any]:
+        """Update page alias for workflow executor compatibility"""
+        return await self.update_page_workflow(step_data)
+    
+    async def _get_user_integration(self, user_id: str, service_name: str) -> Optional[Dict]:
+        """Get user integration for service"""
+        try:
+            result = self.supabase.table('integrations').select('*').eq('user_id', user_id).eq('service_name', service_name).eq('status', 'active').single().execute()
+            return result.data
+        except Exception:
+            if self.logger:
+                self.logger.debug(f"No active integration found for {user_id} and {service_name}")
+            return None
+
+
+# Workflow tool instance
+notion_workflow_tool = NotionWorkflowTool()

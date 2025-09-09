@@ -10,6 +10,7 @@ from datetime import datetime
 from pydantic import BaseModel
 import httpx
 import json as jsonlib
+import logging
 
 from config.settings import settings
 from config.database import get_db_session, get_supabase
@@ -24,6 +25,12 @@ from services.profile_service import ProfileService
 from services.integration_service import IntegrationService
 from services.workflow_service import WorkflowService
 from services.chat_service import ChatService
+# WorkflowExecutor and Monitor
+from services.workflow_executor import WorkflowExecutor
+from services.workflow_monitor import WorkflowMonitor
+
+# Setup logging
+logger = logging.getLogger(__name__)
 
 
 # Pydantic models for request/response
@@ -38,6 +45,12 @@ class WorkflowCreateRequest(BaseModel):
     trigger_type: str = 'manual'
     trigger_config: Dict[str, Any] = {}
     tags: List[str] = []
+    steps: List[Dict[str, Any]] = []
+    is_active: bool = False
+
+
+class WorkflowUpdateStatusRequest(BaseModel):
+    is_active: bool
 
 
 class WorkflowStepCreateRequest(BaseModel):
@@ -135,6 +148,37 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Global WorkflowExecutor and WorkflowMonitor instances
+workflow_executor = None
+workflow_monitor = None
+
+@app.on_event("startup")
+async def startup_event():
+    """Initialize services on startup"""
+    global workflow_executor, workflow_monitor
+    try:
+        # Get supabase client
+        supabase = get_supabase()
+        # Initialize WorkflowExecutor
+        workflow_executor = WorkflowExecutor(supabase)
+        # Initialize WorkflowMonitor
+        workflow_monitor = WorkflowMonitor(supabase, workflow_executor)
+        # Start monitoring workflows
+        await workflow_monitor.start_monitoring()
+        print("✅ WorkflowExecutor and WorkflowMonitor started successfully")
+    except Exception as e:
+        print(f"❌ Failed to start WorkflowExecutor/Monitor: {e}")
+
+@app.on_event("shutdown")
+async def shutdown_event():
+    """Clean up services on shutdown"""
+    global workflow_executor, workflow_monitor
+    if workflow_monitor:
+        await workflow_monitor.stop_monitoring()
+    if workflow_executor:
+        await workflow_executor.shutdown()
+        print("✅ WorkflowExecutor and WorkflowMonitor stopped successfully")
 
 
 # Authentication endpoints
@@ -362,17 +406,40 @@ async def get_user_workflows(
         workflow_service = WorkflowService(supabase)
         workflows = await workflow_service.get_workflows(current_user['id'], status=status)
         
-        return [{
-            "id": workflow.id,
-            "name": workflow.name,
-            "description": workflow.description,
-            "status": workflow.status,
-            "trigger_type": workflow.trigger_type,
-            "trigger_config": workflow.trigger_config,
-            "tags": workflow.tags,
-            "created_at": workflow.created_at,
-            "updated_at": workflow.updated_at
-        } for workflow in workflows]
+        result = []
+        print(f"🔍 Processing {len(workflows)} workflows...")
+        for workflow in workflows:
+            print(f"🔄 Processing workflow: {workflow.name} (ID: {workflow.id})")
+            # Get workflow steps for each workflow
+            steps = await workflow_service.get_workflow_steps(workflow.id)
+            print(f"📋 Workflow {workflow.name} has {len(steps)} steps")
+            logger.info(f"📋 Workflow {workflow.name} has {len(steps)} steps")
+            
+            result.append({
+                "id": workflow.id,
+                "name": workflow.name,
+                "description": workflow.description,
+                "status": workflow.status,
+                "trigger_type": workflow.trigger_type,
+                "trigger_config": workflow.trigger_config,
+                "tags": workflow.tags,
+                "is_active": workflow.is_active,
+                "steps": [{
+                    "id": step.id,
+                    "step_order": step.step_order,
+                    "step_type": step.step_type,
+                    "service_name": step.service_name,
+                    "action_name": step.action_name,
+                    "event_type": step.action_name,  # Add event_type for frontend compatibility
+                    "configuration": step.configuration if isinstance(step.configuration, dict) else (json.loads(step.configuration) if isinstance(step.configuration, str) else {}),
+                    "conditions": step.conditions,
+                    "error_handling": step.error_handling
+                } for step in steps] if steps else [],
+                "created_at": workflow.created_at,
+                "updated_at": workflow.updated_at
+            })
+            
+        return result
         
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to fetch workflows: {str(e)}")
@@ -386,16 +453,25 @@ async def get_workflow(
 ) -> Dict[str, Any]:
     """Get a specific workflow"""
     try:
+        logger.info(f"🔍 Fetching workflow {workflow_id} for user {current_user['id']}")
+        
         workflow_service = WorkflowService(supabase)
         workflow = await workflow_service.get_workflow(workflow_id, current_user['id'])
         
         if not workflow:
+            logger.warning(f"❌ Workflow {workflow_id} not found for user {current_user['id']}")
             raise HTTPException(status_code=404, detail="Workflow not found")
+        
+        logger.info(f"✅ Found workflow: {workflow.name}")
         
         # Get workflow steps
         steps = await workflow_service.get_workflow_steps(workflow_id)
+        logger.info(f"📝 Found {len(steps)} steps for workflow {workflow_id}")
         
-        return {
+        for step in steps:
+            logger.info(f"   Step {step.step_order}: {step.service_name}.{step.action_name} ({step.step_type})")
+        
+        response_data = {
             "id": workflow.id,
             "name": workflow.name,
             "description": workflow.description,
@@ -409,7 +485,8 @@ async def get_workflow(
                 "step_type": step.step_type,
                 "service_name": step.service_name,
                 "action_name": step.action_name,
-                "configuration": step.configuration,
+                "event_type": step.action_name,  # Add event_type for frontend compatibility
+                "configuration": step.configuration if isinstance(step.configuration, dict) else (json.loads(step.configuration) if isinstance(step.configuration, str) else {}),
                 "conditions": step.conditions,
                 "error_handling": step.error_handling
             } for step in steps],
@@ -417,9 +494,13 @@ async def get_workflow(
             "updated_at": workflow.updated_at
         }
         
+        logger.info(f"🚀 Returning workflow data with {len(response_data['steps'])} steps")
+        return response_data
+        
     except HTTPException:
         raise
     except Exception as e:
+        logger.error(f"💥 Failed to fetch workflow {workflow_id}: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Failed to fetch workflow: {str(e)}")
 
 
@@ -438,8 +519,37 @@ async def create_workflow(
             description=request.description,
             trigger_type=request.trigger_type,
             trigger_config=request.trigger_config,
-            tags=request.tags
+            tags=request.tags,
+            is_active=request.is_active
         )
+        
+        # Create workflow steps if provided
+        created_steps = []
+        if request.steps:
+            print(f"🔧 Creating {len(request.steps)} steps for workflow {workflow.id}")
+            for step_data in request.steps:
+                step = await workflow_service.create_workflow_step(
+                    workflow_id=workflow.id,
+                    step_order=step_data.get('step_order', 1),
+                    step_type=step_data.get('step_type', 'action'),
+                    service_name=step_data.get('service_name', ''),
+                    action_name=step_data.get('action_name', ''),
+                    configuration=step_data.get('configuration', {}),
+                    conditions=step_data.get('conditions', {}),
+                    error_handling=step_data.get('error_handling', {})
+                )
+                created_steps.append({
+                    "id": step.id,
+                    "step_order": step.step_order,
+                    "step_type": step.step_type,
+                    "service_name": step.service_name,
+                    "action_name": step.action_name,
+                    "event_type": step.action_name,
+                    "configuration": step.configuration,
+                    "conditions": step.conditions,
+                    "error_handling": step.error_handling
+                })
+            print(f"✅ Created {len(created_steps)} steps successfully")
         
         return {
             "id": workflow.id,
@@ -449,11 +559,14 @@ async def create_workflow(
             "trigger_type": workflow.trigger_type,
             "trigger_config": workflow.trigger_config,
             "tags": workflow.tags,
+            "steps": created_steps,
+            "is_active": workflow.is_active,
             "created_at": workflow.created_at,
             "updated_at": workflow.updated_at
         }
         
     except Exception as e:
+        print(f"❌ Error creating workflow: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Failed to create workflow: {str(e)}")
 
 
@@ -477,6 +590,88 @@ async def delete_workflow(
         raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to delete workflow: {str(e)}")
+
+
+@app.patch("/api/workflows/{workflow_id}/status")
+async def update_workflow_status(
+    workflow_id: str,
+    status_request: WorkflowUpdateStatusRequest,
+    current_user = Depends(get_current_user),
+    supabase: Client = Depends(get_supabase)
+) -> Dict[str, Any]:
+    """Update workflow active status"""
+    try:
+        workflow_service = WorkflowService(supabase)
+        
+        # Update the workflow status
+        success = await workflow_service.update_workflow_status(workflow_id, status_request.is_active)
+        
+        if not success:
+            raise HTTPException(status_code=404, detail="Workflow not found")
+        
+        # Log the status change
+        status_text = "active" if status_request.is_active else "inactive"
+        print(f"✅ Workflow {workflow_id} set to {status_text}")
+        
+        # If workflow is being activated, trigger execution
+        if status_request.is_active:
+            print(f"🚀 Triggering execution for activated workflow {workflow_id}")
+            try:
+                from services.workflow_executor import WorkflowExecutor
+                
+                # Get workflow and steps
+                workflow = await workflow_service.get_workflow(workflow_id, current_user['id'])
+                steps = await workflow_service.get_workflow_steps(workflow_id)
+                
+                if workflow and steps:
+                    executor = WorkflowExecutor(supabase)
+                    trigger_data = {"activated_manually": True, "timestamp": datetime.now().isoformat()}
+                    await executor.execute_workflow(workflow, steps, current_user['id'], trigger_data)
+                else:
+                    print(f"⚠️ Workflow or steps not found for {workflow_id}")
+            except Exception as exec_error:
+                print(f"⚠️ Error executing workflow on activation: {exec_error}")
+        
+        return {"success": True, "is_active": status_request.is_active}
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"❌ Error updating workflow status: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to update workflow status: {str(e)}")
+
+
+@app.patch("/api/workflows/{workflow_id}")
+async def update_workflow(
+    workflow_id: str,
+    updates: Dict[str, Any],
+    current_user = Depends(get_current_user),
+    supabase: Client = Depends(get_supabase)
+) -> Dict[str, Any]:
+    """Update a workflow (status, name, description, etc.)"""
+    try:
+        workflow_service = WorkflowService(supabase)
+        workflow = await workflow_service.update_workflow(workflow_id, current_user['id'], updates)
+        
+        if not workflow:
+            raise HTTPException(status_code=404, detail="Workflow not found")
+            
+        return {
+            "id": workflow.id,
+            "name": workflow.name,
+            "description": workflow.description,
+            "status": workflow.status,
+            "trigger_type": workflow.trigger_type,
+            "trigger_config": workflow.trigger_config,
+            "tags": workflow.tags,
+            "created_at": workflow.created_at,
+            "updated_at": workflow.updated_at
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to update workflow: {str(e)}")
 
 
 @app.post("/api/workflows/execute")
@@ -516,6 +711,101 @@ async def execute_workflow(
         
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Workflow execution failed: {str(e)}")
+
+
+@app.post("/api/workflows/{workflow_id}/steps")
+async def create_workflow_step(
+    workflow_id: str,
+    request: WorkflowStepCreateRequest,
+    current_user = Depends(get_current_user),
+    supabase: Client = Depends(get_supabase)
+) -> Dict[str, Any]:
+    """Create a workflow step"""
+    try:
+        workflow_service = WorkflowService(supabase)
+        
+        # Verify workflow belongs to user
+        workflow = await workflow_service.get_workflow(workflow_id, current_user['id'])
+        if not workflow:
+            raise HTTPException(status_code=404, detail="Workflow not found")
+        
+        # Create workflow step
+        step = await workflow_service.create_workflow_step(
+            workflow_id=workflow_id,
+            step_order=request.step_order,
+            step_type=request.step_type,
+            service_name=request.service_name,
+            action_name=request.action_name,
+            configuration=request.configuration,
+            conditions=request.conditions
+        )
+        
+        return {
+            "id": step.id,
+            "workflow_id": step.workflow_id,
+            "step_order": step.step_order,
+            "step_type": step.step_type,
+            "service_name": step.service_name,
+            "action_name": step.action_name,
+            "configuration": step.configuration,
+            "conditions": step.conditions,
+            "created_at": step.created_at
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to create workflow step: {str(e)}")
+
+
+@app.get("/api/workflows/{workflow_id}/steps")
+async def get_workflow_steps(
+    workflow_id: str,
+    current_user = Depends(get_current_user),
+    supabase: Client = Depends(get_supabase)
+) -> List[Dict[str, Any]]:
+    """Get all steps for a workflow"""
+    try:
+        workflow_service = WorkflowService(supabase)
+        steps = await workflow_service.get_workflow_steps(workflow_id)
+        return [step.dict() for step in steps]
+    except Exception as e:
+        logger.error(f"Failed to get workflow steps: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to get workflow steps: {str(e)}")
+
+@app.patch("/api/workflow-steps/{step_id}")
+async def update_workflow_step(
+    step_id: str,
+    updates: Dict[str, Any],
+    current_user = Depends(get_current_user),
+    supabase: Client = Depends(get_supabase)
+) -> Dict[str, Any]:
+    """Update a workflow step"""
+    try:
+        workflow_service = WorkflowService(supabase)
+        
+        # Update the step
+        step = await workflow_service.update_workflow_step(step_id, updates)
+        
+        if not step:
+            raise HTTPException(status_code=404, detail="Workflow step not found")
+        
+        return {
+            "id": step.id,
+            "workflow_id": step.workflow_id,
+            "step_order": step.step_order,
+            "step_type": step.step_type,
+            "service_name": step.service_name,
+            "action_name": step.action_name,
+            "configuration": step.configuration,
+            "conditions": step.conditions,
+            "updated_at": step.updated_at
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to update workflow step: {str(e)}")
 
 
 # Chat endpoints
@@ -757,17 +1047,8 @@ async def create_integration(
     supabase: Client = Depends(get_supabase)
 ) -> Dict[str, Any]:
     """Create a new integration"""
-    print(f"\n=== INTEGRATION CREATION START ===")
-    print(f"Service Name: {request.service_name}")
-    print(f"Display Name: {request.display_name}")
-    print(f"User ID: {current_user['id']}")
-    print(f"Credentials Keys: {list(request.credentials.keys()) if request.credentials else 'None'}")
-    print(f"Configuration Keys: {list(request.configuration.keys()) if request.configuration else 'None'}")
-    
     try:
         integration_service = IntegrationService(supabase)
-        
-        print(f"Calling integration_service.create_integration...")
         integration = await integration_service.create_integration(
             user_id=current_user['id'],
             service_name=request.service_name,
@@ -775,12 +1056,6 @@ async def create_integration(
             credentials=request.credentials,
             configuration=request.configuration
         )
-        
-        print(f"✅ Integration created successfully:")
-        print(f"  - ID: {integration.id}")
-        print(f"  - Service: {integration.service_name}")
-        print(f"  - Status: {integration.status}")
-        print(f"=== INTEGRATION CREATION END ===")
         
         return {
             "id": integration.id,
@@ -793,10 +1068,6 @@ async def create_integration(
         }
         
     except Exception as e:
-        print(f"❌ Integration creation failed:")
-        print(f"Error type: {type(e).__name__}")
-        print(f"Error message: {str(e)}")
-        print(f"=== INTEGRATION CREATION ERROR END ===")
         raise HTTPException(status_code=500, detail=f"Failed to create integration: {str(e)}")
 
 
@@ -927,6 +1198,12 @@ async def oauth_exchange(
                 'Accept': 'application/json',
                 'Content-Type': 'application/x-www-form-urlencoded'
             }
+            # Debug logging for Notion
+            print(f"🔑 Notion Debug:")
+            print(f"  - Client ID being used: {config['client_id']}")
+            print(f"  - Client Secret preview: {config['client_secret'][:20]}...")
+            print(f"  - Auth string: {auth_string[:30]}...")
+            print(f"  - Base64 auth: Basic {auth_b64[:30]}...")
         else:
             # Default method (client credentials in body)
             token_data['client_id'] = config['client_id']
@@ -1062,6 +1339,164 @@ async def test_tool(tool_name: str, test_data: Dict[str, Any]):
         raise HTTPException(status_code=500, detail=f"Tool test failed: {str(e)}")
 
 
+# Workflow Execution Status Endpoints
+@app.get("/api/workflows/{workflow_id}/status")
+async def get_workflow_status(
+    workflow_id: str,
+    current_user = Depends(get_current_user),
+    supabase: Client = Depends(get_supabase)
+) -> Dict[str, Any]:
+    """Get workflow execution status and statistics"""
+    try:
+        workflow_service = WorkflowService(supabase)
+        workflow = await workflow_service.get_workflow(workflow_id, current_user["id"])
+        
+        if not workflow:
+            raise HTTPException(status_code=404, detail="Workflow not found")
+            
+        # Get execution history from the database
+        executions = await workflow_service.get_executions(workflow_id, limit=100)
+        
+        success_count = sum(1 for e in executions if e.status == 'completed')
+        failure_count = sum(1 for e in executions if e.status == 'failed')
+        
+        return {
+            "workflow_id": workflow_id,
+            "name": workflow.name,
+            "is_active": workflow.status == 'active',
+            "last_execution": executions[0].started_at if executions else None,
+            "total_executions": len(executions),
+            "success_count": success_count,
+            "failure_count": failure_count
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to get workflow status: {str(e)}")
+
+
+@app.get("/api/workflows/{workflow_id}/logs")
+async def get_workflow_logs(
+    workflow_id: str,
+    limit: int = 50,
+    current_user = Depends(get_current_user)
+):
+    """Get execution logs for a specific workflow"""
+    try:
+        # Verify user owns the workflow
+        workflow_service = WorkflowService(get_supabase())
+        workflow = await workflow_service.get_workflow(workflow_id, current_user['id'])
+        if not workflow:
+            raise HTTPException(status_code=404, detail="Workflow not found")
+
+        if not workflow_monitor:
+            return []
+        
+        logs = workflow_monitor.get_execution_logs(workflow_id=workflow_id, limit=limit)
+        return logs
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to get workflow logs: {str(e)}")
+
+
+
+
+
+@app.get("/api/workflows/active")
+async def get_active_workflows(
+    current_user = Depends(get_current_user),
+    supabase: Client = Depends(get_supabase)
+) -> Dict[str, Any]:
+    """Get all active workflows for current user and their status"""
+    try:
+        workflow_service = WorkflowService(supabase)
+        workflows = await workflow_service.get_workflows(current_user["id"], status="active")
+        
+        active_workflows_status = []
+        for workflow in workflows:
+            # This part can be optimized, but for now, it's a simple loop
+            executions = await workflow_service.get_executions(workflow.id, limit=1)
+            last_run = executions[0].started_at if executions else None
+            
+            active_workflows_status.append({
+                "workflow_id": workflow.id,
+                "name": workflow.name,
+                "status": "monitoring", # Simplified status
+                "last_run": last_run
+            })
+        
+        return {
+            "active_workflows": active_workflows_status,
+            "count": len(active_workflows_status)
+        }
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to get active workflows: {str(e)}")
+
+
+# Workflow Monitoring and Logging Endpoints
+
+@app.get("/api/workflows/monitoring/status")
+async def get_monitoring_status(current_user = Depends(get_current_user)):
+    """Get workflow monitoring status"""
+    try:
+        if not workflow_monitor:
+            return {"status": "inactive", "running_workflows": [], "recent_logs": []}
+        
+        return {
+            "status": "active" if workflow_monitor.monitoring_active else "inactive",
+            "running_workflows": workflow_monitor.get_running_workflows(user_id=current_user['id']),
+            "recent_logs": workflow_monitor.get_execution_logs(user_id=current_user['id'], limit=20)
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to get monitoring status: {str(e)}")
+
+@app.post("/api/workflows/{workflow_id}/test-execute")
+async def test_execute_workflow(
+    workflow_id: str,
+    current_user = Depends(get_current_user),
+    supabase: Client = Depends(get_supabase)
+):
+    """Test execute a workflow once (for debugging)"""
+    try:
+        if not workflow_monitor:
+            raise HTTPException(status_code=503, detail="Workflow monitoring service not available")
+        
+        # Verify user owns the workflow
+        workflow_service = WorkflowService(supabase)
+        workflow = await workflow_service.get_workflow(workflow_id, current_user['id'])
+        
+        if not workflow:
+            raise HTTPException(status_code=404, detail="Workflow not found or access denied")
+
+        result = await workflow_monitor.force_execute_workflow(workflow_id)
+        return result
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to test execute workflow: {str(e)}")
+
+@app.get("/api/admin/workflow-logs")
+async def get_all_workflow_logs(
+    limit: int = 200,
+    level: Optional[str] = None,
+    current_user = Depends(get_current_user)
+):
+    """Get all workflow execution logs (admin only)"""
+    try:
+        # This would typically check for admin role
+        # For now, just return user's own logs
+        if not workflow_monitor:
+            return []
+        
+        logs = workflow_monitor.get_execution_logs(user_id=current_user['id'], limit=limit)
+        
+        if level:
+            logs = [log for log in logs if log['level'] == level.upper()]
+        
+        return logs
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to get workflow logs: {str(e)}")
 
 
 if __name__ == "__main__":

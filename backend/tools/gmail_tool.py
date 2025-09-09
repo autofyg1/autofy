@@ -14,6 +14,7 @@ from google.auth.transport.requests import Request
 from google.oauth2.credentials import Credentials
 from googleapiclient.discovery import build
 from googleapiclient.errors import HttpError
+from supabase import Client
 
 import sys
 import os
@@ -67,34 +68,57 @@ class GmailService:
         integration = result.data
         creds_data = integration["credentials"]
         
-        # Create credentials object
+        # Handle both JSON string and dict formats for credentials
+        if isinstance(creds_data, str):
+            try:
+                creds_data = json.loads(creds_data)
+            except json.JSONDecodeError:
+                raise ValueError("Invalid JSON format in Gmail credentials")
+        elif not isinstance(creds_data, dict):
+            raise ValueError(f"Expected credentials to be dict or JSON string, got {type(creds_data)}")
+        
+        # Check if we have a refresh_token - that's all we need to get a new access_token
+        if not creds_data.get("refresh_token"):
+            raise ValueError("Gmail refresh_token missing. Please reconnect Gmail integration.")
+        
+        # Validate OAuth client configuration
+        if not settings.google_client_id or not settings.google_client_secret:
+            raise ValueError("Google OAuth client configuration missing. Check GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET in environment.")
+        
+        # Create credentials object - we'll always refresh to get a valid access_token
         creds = Credentials(
-            token=creds_data.get("access_token"),
+            token=None,  # Start with no token, we'll refresh to get a fresh one
             refresh_token=creds_data.get("refresh_token"),
             token_uri="https://oauth2.googleapis.com/token",
             client_id=settings.google_client_id,
             client_secret=settings.google_client_secret,
-            scopes=["https://www.googleapis.com/auth/gmail.modify"]
+            scopes=[
+                "https://www.googleapis.com/auth/gmail.readonly",
+                "https://www.googleapis.com/auth/gmail.send",
+                "https://www.googleapis.com/auth/userinfo.email",
+                "https://www.googleapis.com/auth/userinfo.profile"
+            ]
         )
         
-        # Refresh if needed
-        if creds.expired and creds.refresh_token:
-            try:
-                creds.refresh(Request())
-                
-                # Update database with new token
-                updated_creds = {
-                    **creds_data,
-                    "access_token": creds.token,
-                    "expires_at": creds.expiry.isoformat() if creds.expiry else None
-                }
-                
-                self.supabase.table("integrations").update(
-                    {"credentials": updated_creds}
-                ).eq("id", integration["id"]).execute()
-                
-            except RefreshError:
-                raise ValueError("Gmail authentication expired. Please reconnect Gmail integration.")
+        # Always refresh to get a fresh access token from the refresh token
+        try:
+            creds.refresh(Request())
+            
+            # Update database with the fresh token
+            updated_creds = {
+                **creds_data,
+                "access_token": creds.token,
+                "expires_at": creds.expiry.isoformat() if creds.expiry else None
+            }
+            
+            self.supabase.table("integrations").update(
+                {"credentials": updated_creds}
+            ).eq("id", integration["id"]).execute()
+            
+        except RefreshError as e:
+            raise ValueError(f"Gmail refresh token invalid or expired: {str(e)}. Please reconnect Gmail integration.")
+        except Exception as e:
+            raise ValueError(f"Error refreshing Gmail token: {str(e)}. Check your Google OAuth configuration.")
         
         return creds
     
@@ -371,3 +395,384 @@ gmail_reply_tool = GmailReplyTool()
 
 # Export all Gmail tools
 gmail_tools = [gmail_fetch_tool, gmail_send_tool, gmail_reply_tool]
+
+
+# Additional workflow execution methods
+class GmailWorkflowTool:
+    """Gmail tool for workflow execution (non-LangChain)"""
+    
+    def __init__(self, supabase: Client = None):
+        self.supabase = supabase or get_supabase()
+        self.logger = None
+        try:
+            import logging
+            self.logger = logging.getLogger(__name__)
+        except ImportError:
+            pass
+    
+    async def get_new_emails(self, access_token: str, keywords: str = "", 
+                           from_email: str = "", subject_contains: str = "",
+                           since_minutes: int = 5) -> List[Dict[str, Any]]:
+        """Get new emails matching criteria for workflows"""
+        try:
+            # Create credentials with all required fields for refresh
+            creds = Credentials(
+                token=access_token,
+                refresh_token=None,  # We don't have refresh_token in this method
+                token_uri="https://oauth2.googleapis.com/token",
+                client_id=settings.google_client_id,
+                client_secret=settings.google_client_secret,
+                scopes=[
+                    "https://www.googleapis.com/auth/gmail.readonly",
+                    "https://www.googleapis.com/auth/gmail.send",
+                    "https://www.googleapis.com/auth/userinfo.email",
+                    "https://www.googleapis.com/auth/userinfo.profile"
+                ]
+            )
+            
+            service = build('gmail', 'v1', credentials=creds)
+            
+            # Build search query
+            query_parts = []
+            
+            if keywords:
+                query_parts.append(f"({keywords})")
+            
+            if from_email:
+                query_parts.append(f"from:{from_email}")
+            
+            if subject_contains:
+                query_parts.append(f"subject:({subject_contains})")
+            
+            # Add time filter
+            import datetime
+            since_time = datetime.datetime.now() - datetime.timedelta(minutes=since_minutes)
+            query_parts.append(f"after:{int(since_time.timestamp())}")
+            
+            query = " ".join(query_parts) if query_parts else "is:unread"
+            
+            # Search messages
+            results = service.users().messages().list(
+                userId='me', 
+                q=query, 
+                maxResults=10
+            ).execute()
+            
+            messages = results.get('messages', [])
+            emails = []
+            
+            # Get email details
+            for msg in messages:
+                try:
+                    message = service.users().messages().get(
+                        userId='me', 
+                        id=msg['id']
+                    ).execute()
+                    
+                    email_data = self._parse_email_message(message)
+                    if email_data:
+                        emails.append(email_data)
+                        
+                except Exception as e:
+                    if self.logger:
+                        self.logger.error(f"Error getting email {msg['id']}: {e}")
+                    continue
+            
+            return emails
+            
+        except Exception as e:
+            if self.logger:
+                self.logger.error(f"Error fetching emails: {e}")
+            return []
+    
+    
+    def _parse_email_message(self, message: Dict) -> Dict[str, Any]:
+        """Parse Gmail API message into workflow format"""
+        try:
+            import datetime
+            payload = message.get('payload', {})
+            headers = payload.get('headers', [])
+            
+            email_data = {
+                'message_id': message['id'],
+                'thread_id': message.get('threadId'),
+                'timestamp': datetime.datetime.fromtimestamp(
+                    int(message.get('internalDate', 0)) / 1000
+                ).isoformat(),
+                'subject': '',
+                'from': '',
+                'to': '',
+                'body': message.get('snippet', '')
+            }
+            
+            # Parse headers
+            for header in headers:
+                name = header.get('name', '').lower()
+                value = header.get('value', '')
+                
+                if name == 'subject':
+                    email_data['subject'] = value
+                elif name == 'from':
+                    email_data['from'] = value
+                elif name == 'to':
+                    email_data['to'] = value
+            
+            # Try to get full body
+            body = self._extract_body(payload)
+            if body:
+                email_data['body'] = body
+            
+            return email_data
+            
+        except Exception as e:
+            if self.logger:
+                self.logger.error(f"Error parsing email: {e}")
+            return None
+    
+    def _extract_body(self, payload: Dict) -> str:
+        """Extract email body from payload"""
+        try:
+            # Check if body data exists
+            if payload.get('body', {}).get('data'):
+                return base64.urlsafe_b64decode(payload['body']['data']).decode('utf-8')
+            
+            # Check parts for text/plain
+            parts = payload.get('parts', [])
+            for part in parts:
+                if part.get('mimeType') == 'text/plain':
+                    if part.get('body', {}).get('data'):
+                        return base64.urlsafe_b64decode(part['body']['data']).decode('utf-8')
+                elif part.get('mimeType') == 'multipart/alternative':
+                    # Recursively check nested parts
+                    nested_body = self._extract_body(part)
+                    if nested_body:
+                        return nested_body
+            
+            return ""
+            
+        except Exception:
+            return ""
+
+
+    async def fetch_emails(self, step_data: Dict[str, Any]) -> Dict[str, Any]:
+        """Fetch emails for workflow execution"""
+        try:
+            user_id = step_data['user_id']
+            config = step_data.get('configuration', {})
+            
+            # Get user integration
+            integration = await self._get_user_integration(user_id, 'gmail')
+            if not integration:
+                raise ValueError("Gmail integration not found for user")
+            
+            # Use GmailService for proper credential handling
+            gmail_service = GmailService()
+            creds = await gmail_service.get_gmail_credentials(user_id)
+            service = build('gmail', 'v1', credentials=creds)
+            
+            # Build query from configuration
+            query_parts = []
+            if config.get('keywords'):
+                query_parts.append(f"({config['keywords']})")
+            if config.get('from_email'):
+                query_parts.append(f"from:{config['from_email']}")
+            if config.get('subject_contains'):
+                query_parts.append(f"subject:({config['subject_contains']})")
+            
+            # Default query if none specified
+            query = " ".join(query_parts) if query_parts else config.get('query', 'is:unread')
+            max_results = config.get('max_results', 10)
+            
+            # Search messages
+            results = service.users().messages().list(
+                userId='me', 
+                q=query, 
+                maxResults=max_results
+            ).execute()
+            
+            messages = results.get('messages', [])
+            emails = []
+            
+            # Parse messages
+            for msg in messages:
+                try:
+                    message = service.users().messages().get(
+                        userId='me', 
+                        id=msg['id'],
+                        format='full'
+                    ).execute()
+                    
+                    email_data = gmail_service.parse_email_message(message)
+                    if email_data:
+                        emails.append(email_data)
+                        
+                except Exception as e:
+                    if self.logger:
+                        self.logger.error(f"Error parsing email {msg['id']}: {e}")
+                    continue
+            
+            return {
+                'success': True,
+                'emails': emails,
+                'count': len(emails),
+                'query_used': query
+            }
+            
+        except Exception as e:
+            if self.logger:
+                self.logger.error(f"Error in fetch_emails: {e}")
+            return {
+                'success': False,
+                'error': str(e),
+                'emails': [],
+                'count': 0
+            }
+    
+    async def send_email(self, step_data: Dict[str, Any]) -> Dict[str, Any]:
+        """Send email for workflow execution"""
+        try:
+            user_id = step_data['user_id']
+            config = step_data.get('configuration', {})
+            
+            # Validate required fields
+            required_fields = ['to_email', 'subject', 'body']
+            for field in required_fields:
+                if not config.get(field):
+                    raise ValueError(f"Missing required field: {field}")
+            
+            # Use GmailService for proper credential handling
+            gmail_service = GmailService()
+            creds = await gmail_service.get_gmail_credentials(user_id)
+            service = build('gmail', 'v1', credentials=creds)
+            
+            # Create message
+            is_html = config.get('is_html', False)
+            if is_html:
+                message = MIMEMultipart('alternative')
+                html_part = MIMEText(config['body'], 'html')
+                message.attach(html_part)
+            else:
+                message = MIMEText(config['body'])
+            
+            message['to'] = config['to_email']
+            message['subject'] = config['subject']
+            
+            # Add CC and BCC if provided
+            if config.get('cc_email'):
+                message['cc'] = config['cc_email']
+            if config.get('bcc_email'):
+                message['bcc'] = config['bcc_email']
+            
+            # Encode message
+            raw_message = base64.urlsafe_b64encode(message.as_bytes()).decode()
+            
+            # Send message
+            result = service.users().messages().send(
+                userId='me',
+                body={'raw': raw_message}
+            ).execute()
+            
+            return {
+                'success': True,
+                'message_id': result.get('id'),
+                'thread_id': result.get('threadId'),
+                'to': config['to_email'],
+                'subject': config['subject']
+            }
+            
+        except Exception as e:
+            if self.logger:
+                self.logger.error(f"Error in send_email: {e}")
+            return {
+                'success': False,
+                'error': str(e)
+            }
+    
+    async def reply_to_email(self, step_data: Dict[str, Any]) -> Dict[str, Any]:
+        """Reply to email for workflow execution"""
+        try:
+            user_id = step_data['user_id']
+            config = step_data.get('configuration', {})
+            
+            # Validate required fields
+            required_fields = ['message_id', 'thread_id', 'body']
+            for field in required_fields:
+                if not config.get(field):
+                    raise ValueError(f"Missing required field: {field}")
+            
+            # Use GmailService for proper credential handling
+            gmail_service = GmailService()
+            creds = await gmail_service.get_gmail_credentials(user_id)
+            service = build('gmail', 'v1', credentials=creds)
+            
+            # Get original message
+            original_message = service.users().messages().get(
+                userId='me', 
+                id=config['message_id'],
+                format='full'
+            ).execute()
+            
+            # Parse original message
+            parsed_original = gmail_service.parse_email_message(original_message)
+            
+            # Determine reply recipient and subject
+            to_email = config.get('custom_to_email') or parsed_original['sender']
+            reply_subject = parsed_original['subject']
+            if not reply_subject.lower().startswith('re:'):
+                reply_subject = f"Re: {reply_subject}"
+            
+            # Create reply message
+            is_html = config.get('is_html', False)
+            if is_html:
+                message = MIMEMultipart('alternative')
+                html_part = MIMEText(config['body'], 'html')
+                message.attach(html_part)
+            else:
+                message = MIMEText(config['body'])
+            
+            message['to'] = to_email
+            message['subject'] = reply_subject
+            message['In-Reply-To'] = f"<{config['message_id']}>"
+            message['References'] = f"<{config['message_id']}>"
+            
+            # Encode message
+            raw_message = base64.urlsafe_b64encode(message.as_bytes()).decode()
+            
+            # Send reply
+            result = service.users().messages().send(
+                userId='me',
+                body={
+                    'raw': raw_message,
+                    'threadId': config['thread_id']
+                }
+            ).execute()
+            
+            return {
+                'success': True,
+                'message_id': result.get('id'),
+                'thread_id': result.get('threadId'),
+                'to': to_email,
+                'is_reply': True
+            }
+            
+        except Exception as e:
+            if self.logger:
+                self.logger.error(f"Error in reply_to_email: {e}")
+            return {
+                'success': False,
+                'error': str(e)
+            }
+    
+    async def _get_user_integration(self, user_id: str, service_name: str) -> Optional[Dict]:
+        """Get user integration for service"""
+        try:
+            result = self.supabase.table('integrations').select('*').eq('user_id', user_id).eq('service_name', service_name).eq('status', 'active').single().execute()
+            return result.data
+        except Exception:
+            if self.logger:
+                self.logger.debug(f"No active integration found for {user_id} and {service_name}")
+            return None
+
+
+# Workflow tool instance
+gmail_workflow_tool = GmailWorkflowTool()
