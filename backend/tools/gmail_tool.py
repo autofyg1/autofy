@@ -59,13 +59,13 @@ class GmailService:
     
     async def get_gmail_credentials(self, user_id: str) -> Credentials:
         """Get and refresh Gmail credentials for user"""
-        # Get integration from database
-        result = self.supabase.table("integrations").select("*").eq("user_id", user_id).eq("service_name", "gmail").single().execute()
+        # Get integration from database - use limit(1) instead of single() to avoid PGRST116 error
+        result = self.supabase.table("integrations").select("*").eq("user_id", user_id).eq("service_name", "gmail").limit(1).execute()
         
-        if not result.data:
-            raise ValueError("Gmail integration not found for user")
+        if not result.data or len(result.data) == 0:
+            raise ValueError(f"Gmail integration not found for user {user_id}. Please connect your Gmail account first.")
         
-        integration = result.data
+        integration = result.data[0]  # Get the first (and only) result
         creds_data = integration["credentials"]
         
         # Handle both JSON string and dict formats for credentials
@@ -216,6 +216,7 @@ class GmailFetchTool(BaseTool):
                     keywords: Optional[List[str]] = None, from_email: Optional[str] = None) -> str:
         """Fetch emails from Gmail"""
         try:
+            print(f"🔍 Gmail fetch called for user_id: {user_id}")  # Debug log
             # Create Gmail service
             gmail_service = GmailService()
             
