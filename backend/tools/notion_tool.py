@@ -441,7 +441,11 @@ class NotionWorkflowTool:
 
             client = NotionClient(auth=access_token)
             
-            target_id = config.get('database_id')
+            # Support both page_id and database_id, prioritize page_id
+            target_id = config.get('page_id') or config.get('database_id')
+            if not target_id:
+                return {'success': False, 'error': 'Either page_id or database_id must be provided in configuration'}
+                
             title = self._resolve_template(config.get('title_template', ''), context)
             content = self._resolve_template(config.get('content_template', ''), context)
 

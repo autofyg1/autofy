@@ -528,13 +528,23 @@ async def create_workflow(
         if request.steps:
             print(f"🔧 Creating {len(request.steps)} steps for workflow {workflow.id}")
             for step_data in request.steps:
+                # Process configuration for Notion steps to use page_id instead of database_id
+                configuration = step_data.get('configuration', {}).copy()
+                
+                # Auto-convert database_id to page_id for Notion steps
+                if step_data.get('service_name') == 'notion' and 'database_id' in configuration and 'page_id' not in configuration:
+                    print(f"🔄 Converting database_id to page_id for Notion step")
+                    configuration['page_id'] = configuration['database_id']
+                    del configuration['database_id']
+                    print(f"   Converted: database_id -> page_id = {configuration['page_id']}")
+                
                 step = await workflow_service.create_workflow_step(
                     workflow_id=workflow.id,
                     step_order=step_data.get('step_order', 1),
                     step_type=step_data.get('step_type', 'action'),
                     service_name=step_data.get('service_name', ''),
                     action_name=step_data.get('action_name', ''),
-                    configuration=step_data.get('configuration', {}),
+                    configuration=configuration,
                     conditions=step_data.get('conditions', {}),
                     error_handling=step_data.get('error_handling', {})
                 )
@@ -729,6 +739,16 @@ async def create_workflow_step(
         if not workflow:
             raise HTTPException(status_code=404, detail="Workflow not found")
         
+        # Process configuration for Notion steps to use page_id instead of database_id
+        configuration = request.configuration.copy()
+        
+        # Auto-convert database_id to page_id for Notion steps
+        if request.service_name == 'notion' and 'database_id' in configuration and 'page_id' not in configuration:
+            print(f"🔄 Converting database_id to page_id for Notion workflow step")
+            configuration['page_id'] = configuration['database_id']
+            del configuration['database_id']
+            print(f"   Converted: database_id -> page_id = {configuration['page_id']}")
+        
         # Create workflow step
         step = await workflow_service.create_workflow_step(
             workflow_id=workflow_id,
@@ -736,7 +756,7 @@ async def create_workflow_step(
             step_type=request.step_type,
             service_name=request.service_name,
             action_name=request.action_name,
-            configuration=request.configuration,
+            configuration=configuration,
             conditions=request.conditions
         )
         
@@ -783,6 +803,22 @@ async def update_workflow_step(
     """Update a workflow step"""
     try:
         workflow_service = WorkflowService(supabase)
+        
+        # Process configuration updates for Notion steps to use page_id instead of database_id
+        if 'configuration' in updates:
+            configuration = updates['configuration'].copy()
+            
+            # Get the current step to check if it's a Notion step
+            current_step = await workflow_service.get_workflow_step(step_id)
+            if current_step and current_step.service_name == 'notion':
+                # Auto-convert database_id to page_id for Notion steps
+                if 'database_id' in configuration and 'page_id' not in configuration:
+                    print(f"🔄 Converting database_id to page_id for Notion workflow step update")
+                    configuration['page_id'] = configuration['database_id']
+                    del configuration['database_id']
+                    print(f"   Converted: database_id -> page_id = {configuration['page_id']}")
+            
+            updates['configuration'] = configuration
         
         # Update the step
         step = await workflow_service.update_workflow_step(step_id, updates)

@@ -289,18 +289,66 @@ async function executeNotionAction(
     const processedContent = config.content_template ? 
       processTemplate(config.content_template, context.variables) : '';
 
-    // Create the page in Notion
-    const notionResponse = await fetch('https://api.notion.com/v1/pages', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${integration.access_token}`,
-        'Content-Type': 'application/json',
-        'Notion-Version': '2022-06-28'
-      },
-      body: JSON.stringify({
-        parent: {
-          database_id: config.database_id
+    // Support both page_id and database_id, prioritize page_id
+    const parentId = config.page_id || config.database_id;
+    if (!parentId) {
+      throw new Error('Either page_id or database_id must be provided in configuration');
+    }
+
+    // Determine parent type and create appropriate payload
+    let requestBody;
+    
+    // Try to detect if it's a database or page by making a test call
+    // First try as database
+    let isDatabase = false;
+    try {
+      const testResponse = await fetch(`https://api.notion.com/v1/databases/${parentId}`, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${integration.access_token}`,
+          'Notion-Version': '2022-06-28'
+        }
+      });
+      isDatabase = testResponse.ok;
+    } catch (e) {
+      isDatabase = false;
+    }
+
+    if (isDatabase) {
+      // Creating a page in a database
+      requestBody = {
+        parent: { database_id: parentId },
+        properties: {
+          Name: {
+            title: [
+              {
+                text: {
+                  content: processedTitle
+                }
+              }
+            ]
+          }
         },
+        children: processedContent ? [
+          {
+            object: 'block',
+            type: 'paragraph',
+            paragraph: {
+              rich_text: [
+                {
+                  text: {
+                    content: processedContent
+                  }
+                }
+              ]
+            }
+          }
+        ] : []
+      };
+    } else {
+      // Creating a child page under a parent page
+      requestBody = {
+        parent: { page_id: parentId },
         properties: {
           title: {
             title: [
@@ -327,7 +375,18 @@ async function executeNotionAction(
             }
           }
         ] : []
-      })
+      };
+    }
+
+    // Create the page in Notion
+    const notionResponse = await fetch('https://api.notion.com/v1/pages', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${integration.access_token}`,
+        'Content-Type': 'application/json',
+        'Notion-Version': '2022-06-28'
+      },
+      body: JSON.stringify(requestBody)
     });
 
     if (!notionResponse.ok) {

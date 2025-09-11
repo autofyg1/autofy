@@ -163,6 +163,29 @@ class WorkflowService:
             print(f"Error fetching workflow steps for {workflow_id}: {e}")
             return []
     
+    async def get_workflow_step(self, step_id: str) -> Optional[WorkflowStep]:
+        """Get a specific workflow step by ID"""
+        try:
+            result = self.supabase.table('workflow_steps').select('*').eq('id', step_id).single().execute()
+            
+            if result.data:
+                step_data = result.data
+                # Parse JSON fields
+                if isinstance(step_data.get('configuration'), str):
+                    step_data['configuration'] = json.loads(step_data['configuration'])
+                if isinstance(step_data.get('conditions'), str):
+                    step_data['conditions'] = json.loads(step_data['conditions'])
+                if isinstance(step_data.get('error_handling'), str):
+                    step_data['error_handling'] = json.loads(step_data['error_handling'])
+                
+                return WorkflowStep(**step_data)
+            
+            return None
+            
+        except Exception as e:
+            print(f"Error fetching workflow step {step_id}: {e}")
+            return None
+    
     async def update_workflow_status(self, workflow_id: str, is_active: bool) -> bool:
         """Update workflow active status"""
         try:
